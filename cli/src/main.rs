@@ -13,7 +13,7 @@ static ARROW: Emoji<'_, '_> = Emoji("→ ", "");
 #[derive(Parser)]
 #[command(
     name = "amphora",
-    about = "Setup e gestão do ambiente PKMS amphora",
+    about = "Setup and management of the amphora PKMS environment",
     version,
     disable_help_subcommand = true
 )]
@@ -24,21 +24,29 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
-    /// Wizard interativo de instalação
-    Install,
-    /// Verifica dependências do sistema
+    /// Interactive installation wizard (or install a specific component)
+    Install {
+        /// Specific component: scripts, hook, claude, obsidian, nvim (optional — installs everything if omitted)
+        component: Option<String>,
+    },
+    /// Check system dependencies
     Check,
-    /// Atualiza scripts e configs no vault
+    /// Update scripts and configs in the vault
     Update,
-    /// Mostra ajuda detalhada dos comandos da CLI
+    /// Show detailed help for CLI commands
     Help {
-        /// Comando específico (opcional)
+        /// Specific command (optional)
         command: Option<String>,
     },
-    /// Guia das features do sistema amphora
+    /// Guide to amphora system features
     Guide {
-        /// Tópico específico: scripts, claude, hook, obsidian (opcional)
+        /// Specific topic: scripts, claude, hook, obsidian (optional)
         topic: Option<String>,
+    },
+    /// Remove installed scripts and configs
+    Uninstall {
+        /// Specific component: scripts, hook, claude, nvim (optional — shows menu if omitted)
+        component: Option<String>,
     },
 }
 
@@ -46,13 +54,25 @@ fn main() {
     let cli = Cli::parse();
 
     match cli.command {
-        Some(Commands::Install) => cmd_install(),
+        Some(Commands::Install { component }) => cmd_install(component.as_deref()),
         Some(Commands::Check) => cmd_check(),
         Some(Commands::Update) => cmd_update(),
         Some(Commands::Help { command }) => cmd_help(command.as_deref()),
         Some(Commands::Guide { topic }) => cmd_guide(topic.as_deref()),
+        Some(Commands::Uninstall { component }) => cmd_uninstall(component.as_deref()),
         None => cmd_help(None),
     }
+}
+
+// ── banner ────────────────────────────────────────────────────────────────────
+
+fn print_banner() {
+    println!();
+    println!("  {}", style("╔═╗╔╦╗╔═╗╦ ╦╔═╗╦═╗╔═╗").cyan().bold());
+    println!("  {}", style("╠═╣║║║╠═╝╠═╣║ ║╠╦╝╠═╣").cyan().bold());
+    println!("  {}", style("╩ ╩╩ ╩╩  ╩ ╩╚═╝╩╚═╩ ╩").cyan().bold());
+    println!("  {}", style("personal knowledge management system").dim());
+    println!();
 }
 
 // ── help ──────────────────────────────────────────────────────────────────────
@@ -63,107 +83,126 @@ fn cmd_help(command: Option<&str>) {
             println!();
             println!("{}", style("amphora install").bold().cyan());
             println!();
-            println!("Wizard interativo que configura o ambiente amphora do zero.");
+            println!("Interactive wizard that sets up the amphora environment from scratch.");
+            println!("Accepts an optional component to install only a specific part.");
             println!();
-            println!("{}", style("O que faz:").bold());
-            println!("  {} Pergunta o caminho do vault Obsidian", ARROW);
-            println!("  {} Pergunta o diretório para os scripts (~/.local/bin)", ARROW);
-            println!("  {} Detecta automaticamente o sink de áudio (PipeWire)", ARROW);
-            println!("  {} Permite escolher o que instalar:", ARROW);
-            println!("      - Scripts de automação (meeting-record, video-note, daily-note...)");
-            println!("      - Git hook global (registra commits na daily note do vault)");
-            println!("      - CLAUDE.md (comandos /nota, /standup, /foco e outros)");
+            println!(
+                "  {} Run {} first to check all dependencies are in place.",
+                style("Tip:").bold(),
+                style("amphora check").cyan()
+            );
+            println!();
+            println!("{}", style("What it does (full wizard):").bold());
+            println!("  {} Asks for the Obsidian vault path", ARROW);
+            println!("  {} Asks for the scripts directory (~/.local/bin)", ARROW);
+            println!("  {} Auto-detects the audio sink (PipeWire)", ARROW);
+            println!("  {} Lets you choose what to install:", ARROW);
+            println!("      - Automation scripts (meeting-record, video-note, daily-note...)");
+            println!("      - Global git hook (logs commits to the vault daily note)");
+            println!("      - CLAUDE.md (commands /nota, /standup, /foco and others)");
             println!("      - .obsidian config + Templates");
+            println!("      - Neovim plugins (obsidian.nvim, vault-tasks, keymaps)");
             println!();
-            println!("{}", style("Uso:").bold());
-            println!("  amphora install");
+            println!("{}", style("Usage:").bold());
+            println!("  amphora install                # full wizard");
+            println!("  amphora install scripts        # only automation scripts");
+            println!("  amphora install hook           # only global git hook");
+            println!("  amphora install claude         # only CLAUDE.md in the vault");
+            println!("  amphora install obsidian       # only .obsidian config + Templates");
+            println!("  amphora install nvim           # Neovim plugins (won't overwrite existing)");
             println!();
-            println!("{}", style("Variáveis de ambiente:").bold());
-            println!("  AMPHORA_VAULT         Caminho do vault (default: ~/amphora)");
-            println!("  AMPHORA_SINK_MONITOR  Sink de áudio para meeting-record");
-            println!("                        (detectado via pw-cli se não definido)");
+            println!("{}", style("Environment variables:").bold());
+            println!("  AMPHORA_VAULT         Vault path (default: ~/amphora)");
+            println!("  AMPHORA_SINK_MONITOR  Audio sink for meeting-record");
+            println!("                        (auto-detected via pw-cli if not set)");
         }
         Some("check") => {
             println!();
             println!("{}", style("amphora check").bold().cyan());
             println!();
-            println!("Verifica se todas as dependências necessárias estão instaladas.");
+            println!("Checks whether all required dependencies are installed.");
             println!();
-            println!("{}", style("Dependências verificadas:").bold());
-            println!("  claude         Claude Code CLI — engine de IA do sistema");
-            println!("  nvim           Neovim — edição do vault pelo terminal");
-            println!("  python3        Necessário para meeting-transcribe e video-note");
-            println!("  faster-whisper Transcrição de áudio local (pip install faster-whisper)");
-            println!("  yt-dlp         Download de legendas do YouTube (pip install yt-dlp)");
-            println!("  pw-record      Gravação de áudio via PipeWire (pipewire)");
-            println!("  notify-send    Notificações desktop (libnotify)");
-            println!("  git            Versionamento do vault");
+            println!("{}", style("Dependencies checked:").bold());
+            println!("  claude         Claude Code CLI — AI engine");
+            println!("  nvim           Neovim — terminal vault editing");
+            println!("  python3        Required for meeting-transcribe and video-note");
+            println!("  faster-whisper Local audio transcription (pip install faster-whisper)");
+            println!("  yt-dlp         YouTube subtitle downloader (pip install yt-dlp)");
+            println!("  pw-record      Audio recording via PipeWire (pipewire)");
+            println!("  notify-send    Desktop notifications (libnotify)");
+            println!("  git            Vault version control");
             println!();
-            println!("{}", style("Uso:").bold());
+            println!("{}", style("Usage:").bold());
             println!("  amphora check");
         }
         Some("update") => {
             println!();
             println!("{}", style("amphora update").bold().cyan());
             println!();
-            println!("Atualiza scripts e configs já instalados após um git pull.");
-            println!("Útil para sincronizar mudanças sem rodar o wizard de instalação completo.");
+            println!("Updates already-installed scripts and configs after a git pull.");
+            println!("Useful to sync changes without running the full installation wizard.");
             println!();
-            println!("{}", style("O que pode atualizar:").bold());
-            println!("  Scripts          Copia versões novas para ~/.local/bin");
-            println!("  CLAUDE.md        Atualiza comandos do Claude Code no vault");
-            println!("  .obsidian config Atualiza configurações e templates do Obsidian");
+            println!("{}", style("What can be updated:").bold());
+            println!("  Scripts          Copies new versions to ~/.local/bin");
+            println!("  CLAUDE.md        Updates Claude Code commands in the vault");
+            println!("  .obsidian config Updates Obsidian settings and templates");
+            println!("  Neovim plugins   Adds new plugin files (skips existing ones)");
             println!();
-            println!("{}", style("Uso:").bold());
+            println!("{}", style("Usage:").bold());
             println!("  amphora update");
         }
         Some(other) => {
             println!();
             println!(
-                "{} Comando {} não reconhecido.",
+                "{} Unknown command: {}",
                 style(WARN).yellow(),
                 style(other).bold()
             );
             println!();
             println!(
-                "Comandos disponíveis: {}",
+                "Available commands: {}",
                 style("install  check  update  help").cyan()
             );
         }
         None => {
-            println!();
-            println!("{}", style("amphora").bold().cyan());
-            println!("Setup e gestão do ambiente PKMS amphora.");
-            println!();
-            println!("{}", style("Comandos:").bold());
+            print_banner();
+            println!("{}", style("Commands:").bold());
             println!(
                 "  {}  {}",
                 style("install").green().bold(),
-                "Wizard interativo de instalação"
+                "Interactive installation wizard"
             );
             println!(
                 "  {}    {}",
                 style("check").green().bold(),
-                "Verifica dependências do sistema"
+                "Check system dependencies"
             );
             println!(
                 "  {}   {}",
                 style("update").green().bold(),
-                "Atualiza scripts e configs no vault"
+                "Update scripts and configs in the vault"
             );
             println!(
                 "  {}     {}",
                 style("help").green().bold(),
-                "Mostra ajuda detalhada dos comandos"
+                "Show detailed help for commands"
+            );
+            println!(
+                "  {}{}",
+                style("uninstall").green().bold(),
+                "  Remove installed scripts and configs"
             );
             println!();
-            println!("{}", style("Exemplos:").bold());
-            println!("  amphora check          # verificar dependências antes de instalar");
-            println!("  amphora install        # wizard de instalação completo");
-            println!("  amphora help install   # ajuda detalhada de um comando específico");
+            println!("{}", style("Examples:").bold());
+            println!("  amphora check                  # check dependencies before installing");
+            println!("  amphora install                # full installation wizard");
+            println!("  amphora install scripts        # install only the scripts");
+            println!("  amphora install hook           # install only the git hook");
+            println!("  amphora uninstall              # remove everything interactively");
+            println!("  amphora help install           # detailed help for a specific command");
             println!();
             println!(
-                "Repositório: {}",
+                "Repository: {}",
                 style("github.com/nfvelten/amphora-setup").dim()
             );
         }
@@ -177,70 +216,93 @@ fn cmd_guide(topic: Option<&str>) {
     match topic {
         Some("scripts") => {
             println!();
-            println!("{}", style("Scripts de automação").bold().cyan());
+            println!("{}", style("Automation scripts").bold().cyan());
             println!();
 
             println!("{}", style("meeting-record").bold().green());
-            println!("  Grava o áudio do sistema (monitor sink via PipeWire).");
-            println!("  Ao parar a gravação, transcreve com faster-whisper e envia");
-            println!("  a transcrição para o Claude, que gera um resumo estruturado");
-            println!("  com contexto, decisões, próximos passos e participantes.");
-            println!("  A nota é salva em Trabalho/Reuniões/ e linkada na daily note.");
-            println!("  {}", style("Uso: keybind (ex: Super+R para iniciar/parar)").dim());
+            println!("  Records system audio (monitor sink via PipeWire).");
+            println!("  When stopped, transcribes with faster-whisper and sends");
+            println!("  the transcript to Claude, which generates a structured summary");
+            println!("  with context, decisions, next steps and participants.");
+            println!("  The note is saved in Work/Meetings/ and linked in the daily note.");
+            println!("  {}", style("Usage: keybind (e.g. Super+R to start/stop)").dim());
             println!();
 
             println!("{}", style("meeting-transcribe").bold().green());
-            println!("  Transcreve um arquivo de áudio usando faster-whisper (modelo medium).");
-            println!("  Usado internamente pelo meeting-record, mas pode ser chamado diretamente.");
-            println!("  {}", style("Uso: meeting-transcribe <arquivo.wav>").dim());
+            println!("  Transcribes an audio file using faster-whisper (medium model).");
+            println!("  Used internally by meeting-record, but can be called directly.");
+            println!("  {}", style("Usage: meeting-transcribe <file.wav>").dim());
             println!();
 
             println!("{}", style("video-note").bold().green());
-            println!("  Recebe uma URL do YouTube, baixa a legenda via yt-dlp,");
-            println!("  limpa o VTT e envia para o Claude gerar um resumo com tema");
-            println!("  principal, pontos-chave e conclusão.");
-            println!("  A nota é salva em Pessoal/Vídeos/ e linkada na daily note.");
-            println!("  {}", style("Uso: video-note <url>").dim());
+            println!("  Takes a YouTube URL, downloads subtitles via yt-dlp,");
+            println!("  cleans the VTT and sends to Claude to generate a summary");
+            println!("  with main topic, key points and conclusion.");
+            println!("  The note is saved in Personal/Videos/ and linked in the daily note.");
+            println!("  {}", style("Usage: video-note <url>").dim());
             println!();
 
             println!("{}", style("daily-note").bold().green());
-            println!("  Abre (ou cria) a daily note do dia no Neovim via scratchpad do Hyprland.");
-            println!("  Se a nota não existe, cria com o template completo: foco do dia,");
-            println!("  tarefas pessoal/trabalho, notas rápidas e log de notas.");
-            println!("  {}", style("Requer: Hyprland + alacritty").dim());
-            println!("  {}", style("Uso: keybind (ex: Super+D)").dim());
+            println!("  Opens (or creates) today's daily note in Neovim via Hyprland scratchpad.");
+            println!("  If the note doesn't exist, creates it with the full template: focus,");
+            println!("  personal/work tasks, quick notes and note log.");
+            println!("  {}", style("Requires: Hyprland + alacritty").dim());
+            println!("  {}", style("Usage: keybind (e.g. Super+D)").dim());
             println!();
 
             println!("{}", style("vault-log-updates.sh").bold().green());
-            println!("  Registra pacotes instalados, atualizados ou removidos do sistema");
-            println!("  (via pacman) em Pessoal/Sistema/Updates.md no vault.");
-            println!("  {}", style("Uso: chamado via hook do sistema ou manualmente").dim());
+            println!("  Logs installed, updated or removed system packages");
+            println!("  (via pacman) to Personal/System/Updates.md in the vault.");
+            println!("  {}", style("Usage: called via system hook or manually").dim());
+            println!();
+
+            println!("{}", style("newsboat-save").bold().green());
+            println!("  Takes a URL from newsboat, scrapes the article with rdrview,");
+            println!("  sends the content to Claude for a structured summary");
+            println!("  (main idea, key points, why it matters) and saves a note to the vault.");
+            println!("  Links the note in today's daily note. Skips duplicates.");
+            println!("  {}", style("Requires: rdrview or w3m, curl").dim());
+            println!("  {}", style("Usage: bound to a key in ~/.newsboat/config").dim());
+            println!();
+
+            println!("{}", style("newsboat-save-bg").bold().green());
+            println!("  Background wrapper for newsboat-save — runs it detached so");
+            println!("  newsboat doesn't freeze while the article is being processed.");
+            println!("  {}", style("Usage: macro-key in newsboat config calling newsboat-save-bg").dim());
+            println!();
+
+            println!("{}", style("claude-amphora").bold().green());
+            println!("  Toggles a floating Claude Code scratchpad inside the vault (Hyprland).");
+            println!("  On first press: opens alacritty with Claude Code in the vault directory.");
+            println!("  On subsequent presses: shows/hides the existing window.");
+            println!("  {}", style("Requires: Hyprland + alacritty").dim());
+            println!("  {}", style("Usage: bind = SUPER, C, exec, claude-amphora").dim());
         }
 
         Some("claude") => {
             println!();
-            println!("{}", style("Comandos Claude Code").bold().cyan());
-            println!("  Disponíveis quando o Claude Code está aberto dentro do vault.");
+            println!("{}", style("Claude Code commands").bold().cyan());
+            println!("  Available when Claude Code is open inside the vault.");
             println!();
 
             let commands = vec![
-                ("/nota",       "Captura rápida de conhecimento — cria nota estruturada com contexto, links e backlinks"),
-                ("/foco",       "Abre uma sessão de trabalho profundo com contexto do projeto e bloqueia distrações"),
-                ("/standup",    "Daily meeting — registra o que foi feito, o que será feito e bloqueios"),
-                ("/review",     "Reflexão diária — o que funcionou, o que melhorar, highlight do dia"),
-                ("/semana",     "Planejamento semanal — define prioridades e metas da semana"),
-                ("/semanal",    "Revisão semanal — retrospectiva do que foi entregue e aprendido"),
-                ("/retro",      "Retrospectiva mensal — análise mais ampla de progresso e ajustes"),
-                ("/morning",    "Rotina matinal — abre o dia com intenção e revisão das tarefas"),
-                ("/tarefa",     "Registra uma tarefa de trabalho com contexto, prioridade e prazo"),
-                ("/aprendizado","Captura aprendizado técnico — cria nota de estudo com conceitos e referências"),
-                ("/ideia",      "Captura rápida de ideia — salva antes de perder sem interromper o fluxo"),
-                ("/brainstorm", "Parceiro de brainstorming — explora ideias de forma não-linear"),
-                ("/leitura",    "Diário de leitura — registra impressões, citações e insights de um livro"),
-                ("/log",        "Registro de sessão — documenta o que foi feito numa sessão de trabalho"),
-                ("/contexto",   "Carrega contexto de um projeto específico para a conversa"),
-                ("/gmud",       "Cria nota de GMUD (Gestão de Mudança) para deploy ou alteração em produção"),
-                ("/check",      "Revisão de tarefas — lista pendências e ajuda a priorizar"),
+                ("/note",       "Quick knowledge capture — creates a structured note with context, links and backlinks"),
+                ("/focus",      "Opens a deep work session with project context"),
+                ("/standup",    "Daily meeting — logs what was done, what will be done and blockers"),
+                ("/review",     "Daily reflection — what worked, what to improve, day highlight"),
+                ("/week",       "Weekly planning — sets priorities and goals for the week"),
+                ("/weekly",     "Weekly review — retrospective of what was delivered and learned"),
+                ("/retro",      "Monthly retrospective — broader analysis of progress and adjustments"),
+                ("/morning",    "Morning routine — opens the day with intention and task review"),
+                ("/task",       "Logs a work task with context, priority and deadline"),
+                ("/learning",   "Technical learning capture — creates a study note with concepts and references"),
+                ("/idea",       "Quick idea capture — saves before it's lost without interrupting flow"),
+                ("/brainstorm", "Brainstorming partner — explores ideas non-linearly"),
+                ("/reading",    "Reading journal — logs impressions, quotes and insights from a book"),
+                ("/log",        "Session log — documents what was done in a work session"),
+                ("/context",    "Loads context from a specific project into the conversation"),
+                ("/change",     "Creates a change management note for deploys or production changes"),
+                ("/check",      "Task review — lists pending items and helps prioritize"),
             ];
 
             for (cmd, desc) in commands {
@@ -252,98 +314,189 @@ fn cmd_guide(topic: Option<&str>) {
             println!();
             println!("{}", style("Git hook — post-commit").bold().cyan());
             println!();
-            println!("Hook global que roda automaticamente após cada commit em qualquer repositório.");
+            println!("Global hook that runs automatically after every commit in any repository.");
             println!();
-            println!("{}", style("O que faz:").bold());
-            println!("  {} Registra o commit na daily note do vault", ARROW);
-            println!("      Formato: hash · repo (branch): mensagem do commit");
+            println!("{}", style("What it does:").bold());
+            println!("  {} Logs the commit to the vault daily note", ARROW);
+            println!("      Format: hash · repo (branch): commit message");
             println!();
-            println!("  {} Atualiza a nota do projeto correspondente no vault", ARROW);
-            println!("      Busca em Pessoal/Projetos/ e Trabalho/ uma nota com o nome do repo.");
-            println!("      Se encontrar, adiciona o commit em ## Commits com contexto gerado");
-            println!("      pelo Claude (uma frase sobre o objetivo ou impacto da mudança).");
+            println!("  {} Updates the corresponding project note in the vault", ARROW);
+            println!("      Looks in Personal/Projects/ and Work/ for a note matching the repo name.");
+            println!("      If found, appends the commit under ## Commits with Claude-generated");
+            println!("      context (one sentence about the goal or impact of the change).");
             println!();
-            println!("{}", style("Observações:").bold());
-            println!("  - Commits no próprio vault (amphora) são ignorados");
-            println!("  - O contexto do Claude roda em background, não bloqueia o commit");
-            println!("  - A nota do projeto precisa existir para receber o log");
+            println!("{}", style("Notes:").bold());
+            println!("  - Commits in the vault itself (amphora) are ignored");
+            println!("  - Claude context runs in background, doesn't block the commit");
+            println!("  - The project note must exist to receive the log");
         }
 
         Some("obsidian") => {
             println!();
-            println!("{}", style("Obsidian — configuração").bold().cyan());
+            println!("{}", style("Obsidian — configuration").bold().cyan());
             println!();
             println!("{}", style("Plugins:").bold());
             let plugins = vec![
-                ("obsidian-git",          "Backup automático a cada 1 min, auto-pull no boot, sync via merge"),
-                ("dataview",              "Queries de tarefas e notas nas daily notes"),
-                ("templater-obsidian",    "Templates com lógica: data atual, dia da semana em pt-BR, prompts"),
-                ("obsidian-tasks-plugin", "Gerenciamento de tarefas com queries, filtros e datas"),
-                ("calendar",              "Navegação por daily notes via calendário na sidebar"),
-                ("obsidian-reminder-plugin", "Lembretes de tarefas com notificação desktop"),
-                ("typewriter-mode",       "Foca a linha atual no centro da tela durante a escrita"),
+                ("obsidian-git",             "Auto-backup every 1 min, auto-pull on boot, merge sync strategy"),
+                ("dataview",                 "Task and note queries in daily notes"),
+                ("templater-obsidian",       "Template engine: current date, weekday, prompts"),
+                ("obsidian-tasks-plugin",    "Task management with queries, filters and dates"),
+                ("calendar",                 "Daily note navigation via sidebar calendar"),
+                ("obsidian-reminder-plugin", "Task reminders with desktop notifications"),
+                ("typewriter-mode",          "Keeps the current line centered while writing"),
             ];
             for (p, desc) in plugins {
                 println!("  {}  {}", style(p).green().bold(), desc);
             }
             println!();
-            println!("{}", style("Templates incluídos:").bold());
-            println!("  Daily Notes      Template completo com foco, tarefas, log e dataview");
-            println!("  Aprendizado      Estrutura para notas de estudo técnico");
-            println!("  Weekly Review    Retrospectiva semanal com queries de tarefas");
-            println!("  Demanda          Template para demandas de trabalho com retrospectiva");
-            println!("  Review           Template para reviews de filmes, séries e podcasts");
+            println!("{}", style("Included templates:").bold());
+            println!("  Daily Notes      Full template with focus, tasks, log and dataview query");
+            println!("  Study Note       Structure for technical study notes");
+            println!("  Weekly Review    Weekly retrospective with task queries");
+            println!("  Work Demand      Template for work demands with retrospective");
+            println!("  Review           Template for movie, series and podcast reviews");
             println!();
-            println!("{}", style("Tema:").bold());
-            println!("  O vault funciona melhor com o tema mateCreations (Yerba Mate / Tererê).");
+            println!("{}", style("Theme:").bold());
+            println!("  The vault works best with the mateCreations theme (Yerba Mate / Tererê).");
             println!("  {} github.com/nfvelten", ARROW);
+        }
+
+        Some("nvim") => {
+            println!();
+            println!("{}", style("Neovim — vault integration").bold().cyan());
+            println!();
+            println!("Three plugin files for LazyVim that connect Neovim to the vault.");
+            println!("Installed to ~/.config/nvim/lua/plugins/ without overwriting existing files.");
+            println!();
+
+            println!("{}", style("obsidian.lua").bold().green());
+            println!("  obsidian.nvim configured for the vault workspace.");
+            println!("  {} Follow wiki-links with gf", style("·").dim());
+            println!("  {} Toggle task checkbox with <leader>ch", style("·").dim());
+            println!("  {} Hover preview of [[link]] under cursor with K", style("·").dim());
+            println!("  {} snacks.nvim as picker", style("·").dim());
+            println!("  {} render-markdown.nvim for rendering (UI disabled)", style("·").dim());
+            println!();
+
+            println!("{}", style("vault-tasks.lua").bold().green());
+            println!("  Full vault workflow — all keymaps under <leader>v*");
+            println!("  {} <leader>va  tasks — work", style("·").dim());
+            println!("  {} <leader>vp  tasks — personal", style("·").dim());
+            println!("  {} <leader>vd  tasks — today's daily note", style("·").dim());
+            println!("  {} <leader>vf  fulltext search in vault", style("·").dim());
+            println!("  {} <leader>vn  new note", style("·").dim());
+            println!("  {} <leader>vb  backlinks for current note", style("·").dim());
+            println!("  {} <leader>vm  navigate vault (all notes)", style("·").dim());
+            println!("  {} <leader>vi  quick capture → Inbox", style("·").dim());
+            println!("  {} <leader>vg  lazygit in vault", style("·").dim());
+            println!("  {} [[          insert wikilink (insert mode)", style("·").dim());
+            println!();
+
+            println!("{}", style("vault-keymaps.lua").bold().green());
+            println!("  Standalone keymaps, no plugin dependency.");
+            println!("  {} <leader>od  open today's daily note", style("·").dim());
+            println!("  {} <leader>ov  open vault root", style("·").dim());
+            println!("  {} <leader>ot  add task to today's daily note", style("·").dim());
+        }
+
+        Some("omarchy") => {
+            println!();
+            println!("{}", style("Omarchy + mateCreations").bold().cyan());
+            println!();
+            println!("Amphora is designed to work alongside Omarchy — a pre-configured");
+            println!("Linux desktop environment built around a consistent, distraction-free");
+            println!("workflow. While amphora works on any system, Omarchy provides the");
+            println!("tightest integration.");
+            println!();
+            println!("  {}", style("github.com/nicksoutram/omarchy").dim());
+            println!();
+            println!("{}", style("mateCreations themes:").bold());
+            println!();
+            println!(
+                "  {}   {}",
+                style("Yerba Mate").green().bold(),
+                style("dark  — deep greens and earthy tones").dim()
+            );
+            println!(
+                "  {}       {}",
+                style("Tererê").yellow().bold(),
+                style("light — warm, low-contrast cream palette").dim()
+            );
+            println!();
+            println!("  Available for: Obsidian · Neovim · VS Code · Zen Browser · Hyprland");
+            println!("  Automatic light/dark switching based on time of day (6h–18h light).");
+            println!();
+            println!("  {}", style("github.com/nfvelten (mateCreations)").dim());
+            println!();
+            println!("{}", style("Recommended Hyprland keybinds:").bold());
+            println!("  bind = SUPER, C, exec, claude-amphora   # Claude Code scratchpad");
+            println!("  bind = SUPER, N, exec, daily-note        # daily note scratchpad");
+            println!("  bind = SUPER, R, exec, meeting-record    # start/stop recording");
+            println!();
+            println!("{}", style("Window rules (windowrules.conf):").bold());
+            println!("  windowrulev2 = float, class:claude-amphora");
+            println!("  windowrulev2 = size 1100 640, class:claude-amphora");
+            println!("  windowrulev2 = workspace special:claude-amphora, class:claude-amphora");
+            println!("  windowrulev2 = float, class:daily-note");
+            println!("  windowrulev2 = size 1100 640, class:daily-note");
+            println!("  windowrulev2 = workspace special:daily-note, class:daily-note");
         }
 
         Some(other) => {
             println!();
             println!(
-                "{} Tópico {} não reconhecido.",
+                "{} Unknown topic: {}",
                 style(WARN).yellow(),
                 style(other).bold()
             );
             println!();
             println!(
-                "Tópicos disponíveis: {}",
-                style("scripts  claude  hook  obsidian").cyan()
+                "Available topics: {}",
+                style("scripts  claude  hook  obsidian  nvim  omarchy").cyan()
             );
         }
 
         None => {
             println!();
-            println!("{}", style("amphora guide — visão geral do sistema").bold().cyan());
+            println!("{}", style("amphora guide — system overview").bold().cyan());
             println!();
-            println!("O amphora é um PKMS (Personal Knowledge Management System) construído");
-            println!("para reduzir carga cognitiva e externalizar o pensamento em notas");
-            println!("estruturadas, com automação de captura e integração com IA.");
+            println!("Amphora is a PKMS (Personal Knowledge Management System) built");
+            println!("to reduce cognitive load by externalizing thoughts into structured");
+            println!("notes, with automated capture and AI integration.");
             println!();
-            println!("{}", style("Componentes:").bold());
+            println!("{}", style("Components:").bold());
             println!(
-                "  {}        Scripts de automação — gravação, transcrição, ingestão de vídeos",
+                "  {}        Automation scripts — recording, transcription, video ingestion",
                 style("scripts").green().bold()
             );
             println!(
-                "  {}         Comandos do Claude Code no vault — /nota, /foco, /standup...",
+                "  {}         Claude Code commands in the vault — /note, /focus, /standup...",
                 style("claude").green().bold()
             );
             println!(
-                "  {}           Git hook global — registra commits nas notas do vault",
+                "  {}           Global git hook — logs commits to vault notes",
                 style("hook").green().bold()
             );
             println!(
-                "  {}        Configuração do Obsidian — plugins, templates e tema",
+                "  {}        Obsidian configuration — plugins, templates and theme",
                 style("obsidian").green().bold()
             );
+            println!(
+                "  {}          Neovim plugin files — vault-tasks, obsidian.nvim, keymaps",
+                style("nvim").green().bold()
+            );
+            println!(
+                "  {}        Omarchy integration + mateCreations themes",
+                style("omarchy").green().bold()
+            );
             println!();
-            println!("{}", style("Exemplos:").bold());
-            println!("  amphora guide scripts    # o que cada script faz e como usar");
-            println!("  amphora guide claude     # lista de comandos /cmd disponíveis");
-            println!("  amphora guide hook       # como o git hook funciona");
-            println!("  amphora guide obsidian   # plugins e templates incluídos");
+            println!("{}", style("Examples:").bold());
+            println!("  amphora guide scripts    # what each script does and how to use it");
+            println!("  amphora guide claude     # list of available /cmd commands");
+            println!("  amphora guide hook       # how the git hook works");
+            println!("  amphora guide obsidian   # included plugins and templates");
+            println!("  amphora guide nvim       # Neovim plugin files and keymaps");
+            println!("  amphora guide omarchy    # Omarchy integration and mateCreations themes");
         }
     }
     println!();
@@ -351,32 +504,55 @@ fn cmd_guide(topic: Option<&str>) {
 
 // ── install ───────────────────────────────────────────────────────────────────
 
-fn cmd_install() {
+fn cmd_install(component: Option<&str>) {
+    match component {
+        Some("scripts") => cmd_install_scripts(),
+        Some("hook") => cmd_install_hook(),
+        Some("claude") => cmd_install_claude(),
+        Some("obsidian") => cmd_install_obsidian(),
+        Some("nvim") => cmd_install_nvim(),
+        Some(other) => {
+            println!();
+            println!(
+                "{} Unknown component: {}",
+                style(WARN).yellow(),
+                style(other).bold()
+            );
+            println!();
+            println!(
+                "Available components: {}",
+                style("scripts  hook  claude  obsidian  nvim").cyan()
+            );
+            println!();
+        }
+        None => cmd_install_all(),
+    }
+}
+
+fn cmd_install_all() {
     let theme = ColorfulTheme::default();
 
-    println!();
-    println!("{}", style("=== amphora install ===").bold().cyan());
-    println!();
+    print_banner();
 
     let default_vault = format!("{}/amphora", home());
     let vault_path: String = Input::with_theme(&theme)
-        .with_prompt("Caminho do vault Obsidian")
+        .with_prompt("Obsidian vault path")
         .default(default_vault)
         .interact_text()
         .unwrap();
 
     let default_bin = format!("{}/.local/bin", home());
     let bin_dir: String = Input::with_theme(&theme)
-        .with_prompt("Diretório para instalar scripts")
+        .with_prompt("Scripts install directory")
         .default(default_bin)
         .interact_text()
         .unwrap();
 
     let detected_sink = detect_sink();
-    let sink_hint = detected_sink.as_deref().unwrap_or("não detectado");
+    let sink_hint = detected_sink.as_deref().unwrap_or("not detected");
     let sink: String = Input::with_theme(&theme)
         .with_prompt(format!(
-            "Sink de áudio para meeting-record (detectado: {sink_hint})"
+            "Audio sink for meeting-record (detected: {sink_hint})"
         ))
         .default(detected_sink.unwrap_or_default())
         .allow_empty(true)
@@ -385,44 +561,60 @@ fn cmd_install() {
 
     let options = vec![
         "Scripts (meeting-record, video-note, daily-note...)",
-        "Git hook global (post-commit → registra commits no vault)",
-        "CLAUDE.md no vault (comandos /nota, /standup, /foco...)",
+        "Global git hook (post-commit → logs commits to vault)",
+        "CLAUDE.md in vault (/nota, /standup, /foco commands...)",
         ".obsidian config + Templates",
-        "Tudo acima",
+        "Neovim plugins (obsidian.nvim, vault-tasks, keymaps)",
+        "All of the above",
     ];
 
     let selection = Select::with_theme(&theme)
-        .with_prompt("O que instalar?")
+        .with_prompt("What to install?")
         .items(&options)
-        .default(4)
+        .default(5)
         .interact()
         .unwrap();
 
-    let install_scripts = matches!(selection, 0 | 4);
-    let install_hook = matches!(selection, 1 | 4);
-    let install_claude = matches!(selection, 2 | 4);
-    let install_obsidian = matches!(selection, 3 | 4);
+    let install_scripts = matches!(selection, 0 | 5);
+    let install_hook = matches!(selection, 1 | 5);
+    let install_claude = matches!(selection, 2 | 5);
+    let install_obsidian = matches!(selection, 3 | 5);
+    let install_nvim = matches!(selection, 4 | 5);
+
+    let default_nvim = format!("{}/.config/nvim", home());
+    let nvim_dir: String = if install_nvim {
+        Input::with_theme(&theme)
+            .with_prompt("Neovim config directory")
+            .default(default_nvim)
+            .interact_text()
+            .unwrap()
+    } else {
+        default_nvim
+    };
 
     println!();
-    println!("{}", style("Resumo:").bold());
+    println!("{}", style("Summary:").bold());
     println!("  Vault:   {}", style(&vault_path).cyan());
     println!("  Scripts: {}", style(&bin_dir).cyan());
     if !sink.is_empty() {
         println!("  Sink:    {}", style(&sink).cyan());
     }
+    if install_nvim {
+        println!("  Neovim:  {}", style(&nvim_dir).cyan());
+    }
     println!();
 
     if !Confirm::with_theme(&theme)
-        .with_prompt("Confirmar instalação?")
+        .with_prompt("Confirm installation?")
         .default(true)
         .interact()
         .unwrap()
     {
-        println!("{} Cancelado.", WARN);
+        println!("{} Cancelled.", WARN);
         return;
     }
 
-    println!();
+    warn_missing_deps(install_scripts, install_hook, install_nvim);
 
     let root = repo_root();
     let vault = PathBuf::from(&vault_path);
@@ -439,17 +631,187 @@ fn cmd_install() {
     if install_obsidian {
         install_obsidian_config(&root, &vault);
     }
+    if install_nvim {
+        install_nvim_plugins(&root, &vault_path, &nvim_dir);
+    }
 
     println!();
-    println!("{}", style("=== Instalação concluída ===").bold().green());
+    println!("{}", style("=== Installation complete ===").bold().green());
     println!();
-    println!("Próximos passos:");
+    println!("{}", style("Next steps:").bold());
     println!(
-        "  {} Abra o vault no Obsidian — plugins serão baixados automaticamente",
+        "  {} Open the vault in Obsidian — plugins will be downloaded automatically",
         ARROW
     );
-    println!("  {} Tema: github.com/nfvelten (mateCreations)", ARROW);
-    println!("  {} Neovim: github.com/nfvelten/dotfiles", ARROW);
+    println!("  {} Neovim dotfiles: github.com/nfvelten/dotfiles", ARROW);
+    println!();
+    println!("{}", style("Recommended environment:").bold());
+    println!(
+        "  {} Works best on {} — a pre-configured Linux desktop environment",
+        ARROW,
+        style("Omarchy").cyan().bold()
+    );
+    println!(
+        "    {}",
+        style("github.com/nicksoutram/omarchy").dim()
+    );
+    println!();
+    println!("{}", style("Themes:").bold());
+    println!(
+        "  {} {} {} and {} {} — available for Obsidian, Neovim, VS Code and Zen Browser",
+        ARROW,
+        style("Yerba Mate").green().bold(),
+        style("(dark)").dim(),
+        style("Tererê").yellow().bold(),
+        style("(light)").dim(),
+    );
+    println!(
+        "    {} Automatic light/dark switching based on time of day",
+        style("·").dim()
+    );
+    println!(
+        "    {}",
+        style("github.com/nfvelten (mateCreations)").dim()
+    );
+    println!();
+}
+
+fn cmd_install_scripts() {
+    let theme = ColorfulTheme::default();
+
+    println!();
+    println!("{}", style("=== amphora install scripts ===").bold().cyan());
+    println!();
+
+    let default_vault = format!("{}/amphora", home());
+    let vault_path: String = Input::with_theme(&theme)
+        .with_prompt("Obsidian vault path")
+        .default(default_vault)
+        .interact_text()
+        .unwrap();
+
+    let default_bin = format!("{}/.local/bin", home());
+    let bin_dir: String = Input::with_theme(&theme)
+        .with_prompt("Scripts install directory")
+        .default(default_bin)
+        .interact_text()
+        .unwrap();
+
+    let detected_sink = detect_sink();
+    let sink_hint = detected_sink.as_deref().unwrap_or("not detected");
+    let sink: String = Input::with_theme(&theme)
+        .with_prompt(format!(
+            "Audio sink for meeting-record (detected: {sink_hint})"
+        ))
+        .default(detected_sink.unwrap_or_default())
+        .allow_empty(true)
+        .interact_text()
+        .unwrap();
+
+    println!();
+    let root = repo_root();
+    install_scripts_to(&root, &PathBuf::from(&bin_dir), &vault_path, &sink);
+    println!();
+    println!("{} Scripts installed.", style(CHECK).green());
+    println!();
+}
+
+fn cmd_install_hook() {
+    let theme = ColorfulTheme::default();
+
+    println!();
+    println!("{}", style("=== amphora install hook ===").bold().cyan());
+    println!();
+
+    let default_vault = format!("{}/amphora", home());
+    let vault_path: String = Input::with_theme(&theme)
+        .with_prompt("Obsidian vault path")
+        .default(default_vault)
+        .interact_text()
+        .unwrap();
+
+    println!();
+    let root = repo_root();
+    install_git_hook(&root, &vault_path);
+    println!();
+    println!("{} Git hook installed.", style(CHECK).green());
+    println!();
+}
+
+fn cmd_install_claude() {
+    let theme = ColorfulTheme::default();
+
+    println!();
+    println!("{}", style("=== amphora install claude ===").bold().cyan());
+    println!();
+
+    let default_vault = format!("{}/amphora", home());
+    let vault_path: String = Input::with_theme(&theme)
+        .with_prompt("Obsidian vault path")
+        .default(default_vault)
+        .interact_text()
+        .unwrap();
+
+    println!();
+    let root = repo_root();
+    let vault = PathBuf::from(&vault_path);
+    install_claude_md(&root, &vault);
+    println!();
+    println!("{} CLAUDE.md installed.", style(CHECK).green());
+    println!();
+}
+
+fn cmd_install_nvim() {
+    let theme = ColorfulTheme::default();
+
+    println!();
+    println!("{}", style("=== amphora install nvim ===").bold().cyan());
+    println!();
+
+    let default_vault = format!("{}/amphora", home());
+    let vault_path: String = Input::with_theme(&theme)
+        .with_prompt("Obsidian vault path")
+        .default(default_vault)
+        .interact_text()
+        .unwrap();
+
+    let default_nvim = format!("{}/.config/nvim", home());
+    let nvim_dir: String = Input::with_theme(&theme)
+        .with_prompt("Neovim config directory")
+        .default(default_nvim)
+        .interact_text()
+        .unwrap();
+
+    println!();
+    let root = repo_root();
+    install_nvim_plugins(&root, &vault_path, &nvim_dir);
+    println!();
+    println!("{} Neovim plugins installed.", style(CHECK).green());
+    println!();
+    println!("Restart Neovim — Lazy will install the plugins automatically.");
+    println!();
+}
+
+fn cmd_install_obsidian() {
+    let theme = ColorfulTheme::default();
+
+    println!();
+    println!("{}", style("=== amphora install obsidian ===").bold().cyan());
+    println!();
+
+    let default_vault = format!("{}/amphora", home());
+    let vault_path: String = Input::with_theme(&theme)
+        .with_prompt("Obsidian vault path")
+        .default(default_vault)
+        .interact_text()
+        .unwrap();
+
+    println!();
+    let root = repo_root();
+    let vault = PathBuf::from(&vault_path);
+    install_obsidian_config(&root, &vault);
+    println!();
+    println!("{} Obsidian config installed.", style(CHECK).green());
     println!();
 }
 
@@ -457,60 +819,134 @@ fn cmd_install() {
 
 fn cmd_check() {
     println!();
-    println!("{}", style("=== Verificando dependências ===").bold().cyan());
+    println!("{}", style("=== Checking dependencies ===").bold().cyan());
     println!();
 
-    let deps: &[(&str, &str)] = &[
-        ("claude", "curl -fsSL https://claude.ai/install.sh | sh"),
-        ("nvim", "gerenciador de pacotes do sistema"),
-        ("python3", "gerenciador de pacotes do sistema"),
-        ("yt-dlp", "pip install yt-dlp"),
-        ("pw-record", "pipewire (gerenciador de pacotes do sistema)"),
-        ("notify-send", "libnotify (gerenciador de pacotes do sistema)"),
-        ("git", "gerenciador de pacotes do sistema"),
+    // ── Required ──────────────────────────────────────────────────────────────
+    println!("{}", style("Required:").bold());
+
+    let required: &[(&str, &str)] = &[
+        ("claude",      "curl -fsSL https://claude.ai/install.sh | sh"),
+        ("git",         "system package manager"),
+        ("python3",     "system package manager"),
+        ("pw-record",   "pipewire (system package manager)"),
+        ("notify-send", "libnotify (system package manager)"),
+        ("yt-dlp",      "pip install yt-dlp"),
     ];
 
     let mut all_ok = true;
 
-    for (dep, hint) in deps {
-        if which::which(dep).is_ok() {
+    for (dep, hint) in required {
+        if dep_ok(dep) {
             println!("  {} {}", style(CHECK).green(), style(dep).bold());
         } else {
             println!(
-                "  {} {} — {}",
+                "  {} {}  {}",
                 style(WARN).yellow(),
                 style(dep).bold(),
-                style(hint).dim()
+                style(format!("→ {hint}")).dim()
             );
             all_ok = false;
         }
     }
 
-    let whisper_ok = Command::new("python3")
-        .args(["-c", "import faster_whisper"])
-        .output()
-        .map(|o| o.status.success())
-        .unwrap_or(false);
+    if dep_ok("python3") {
+        if python_module_ok("faster_whisper") {
+            println!("  {} {}", style(CHECK).green(), style("faster-whisper").bold());
+        } else {
+            println!(
+                "  {} {}  {}",
+                style(WARN).yellow(),
+                style("faster-whisper").bold(),
+                style("→ pip install faster-whisper").dim()
+            );
+            all_ok = false;
+        }
+    }
 
-    if whisper_ok {
-        println!("  {} {}", style(CHECK).green(), style("faster-whisper").bold());
+    println!();
+
+    // ── Optional ──────────────────────────────────────────────────────────────
+    println!("{}", style("Optional:").bold());
+
+    let optional: &[(&str, &str, &str)] = &[
+        ("nvim",      "system package manager",  "vault editing in Neovim"),
+        ("hyprctl",   "Hyprland WM",             "claude-amphora and daily-note scratchpads"),
+        ("alacritty", "system package manager",  "claude-amphora and daily-note scratchpads"),
+        ("rdrview",   "github.com/nicksoutram/rdrview", "article extraction (newsboat-save)"),
+        ("w3m",       "system package manager",  "fallback article extraction (newsboat-save)"),
+        ("curl",      "system package manager",  "newsboat-save"),
+        ("newsboat",  "system package manager",  "RSS reader integration"),
+    ];
+
+    for (dep, hint, purpose) in optional {
+        if dep_ok(dep) {
+            println!(
+                "  {} {}  {}",
+                style(CHECK).green(),
+                style(dep).bold(),
+                style(format!("— {purpose}")).dim()
+            );
+        } else {
+            println!(
+                "  {} {}  {}  {}",
+                style("·").dim(),
+                style(dep).dim(),
+                style(format!("— {purpose}")).dim(),
+                style(format!("(install: {hint})")).dim()
+            );
+        }
+    }
+
+    println!();
+
+    // ── Environment ───────────────────────────────────────────────────────────
+    println!("{}", style("Environment:").bold());
+
+    let omarchy_ok = dep_ok("omarchy") || std::path::Path::new("/usr/local/share/omarchy").exists()
+        || std::path::Path::new(&format!("{}/.local/share/omarchy", home())).exists();
+
+    if omarchy_ok {
+        println!(
+            "  {} {}  {}",
+            style(CHECK).green(),
+            style("omarchy").bold(),
+            style("— recommended Linux desktop environment").dim()
+        );
     } else {
         println!(
-            "  {} {} — {}",
-            style(WARN).yellow(),
-            style("faster-whisper").bold(),
-            style("pip install faster-whisper").dim()
+            "  {} {}  {}",
+            style("·").dim(),
+            style("omarchy").dim(),
+            style("— recommended for best integration (github.com/nicksoutram/omarchy)").dim()
         );
-        all_ok = false;
+    }
+
+    // Check for mateCreations theme in Obsidian
+    let theme_path = format!("{}/amphora/.obsidian/themes/Omarchy/theme.css", home());
+    if std::path::Path::new(&theme_path).exists() {
+        println!(
+            "  {} {}  {}",
+            style(CHECK).green(),
+            style("mateCreations theme").bold(),
+            style("— Yerba Mate / Tererê").dim()
+        );
+    } else {
+        println!(
+            "  {} {}  {}",
+            style("·").dim(),
+            style("mateCreations theme").dim(),
+            style("— Yerba Mate / Tererê (github.com/nfvelten)").dim()
+        );
     }
 
     println!();
 
     if all_ok {
-        println!("{} Todas as dependências encontradas.", style(CHECK).green());
+        println!("{} All required dependencies found.", style(CHECK).green());
     } else {
         println!(
-            "{} Algumas dependências estão faltando. Instale-as antes de rodar {}.",
+            "{} Some required dependencies are missing. Install them before running {}.",
             style(WARN).yellow(),
             style("amphora install").bold()
         );
@@ -529,44 +965,170 @@ fn cmd_update() {
 
     let default_vault = format!("{}/amphora", home());
     let vault_path: String = Input::with_theme(&theme)
-        .with_prompt("Caminho do vault")
+        .with_prompt("Vault path")
         .default(default_vault)
         .interact_text()
         .unwrap();
 
     let default_bin = format!("{}/.local/bin", home());
     let bin_dir: String = Input::with_theme(&theme)
-        .with_prompt("Diretório dos scripts")
+        .with_prompt("Scripts directory")
         .default(default_bin)
         .interact_text()
         .unwrap();
 
-    let options = vec!["Scripts", "CLAUDE.md", ".obsidian config + Templates", "Tudo"];
+    let options = vec![
+        "Scripts",
+        "CLAUDE.md",
+        ".obsidian config + Templates",
+        "Neovim plugins",
+        "Everything",
+    ];
     let selection = Select::with_theme(&theme)
-        .with_prompt("O que atualizar?")
+        .with_prompt("What to update?")
         .items(&options)
-        .default(3)
+        .default(4)
         .interact()
         .unwrap();
+
+    let default_nvim = format!("{}/.config/nvim", home());
+    let nvim_dir: String = if matches!(selection, 3 | 4) {
+        Input::with_theme(&theme)
+            .with_prompt("Neovim config directory")
+            .default(default_nvim)
+            .interact_text()
+            .unwrap()
+    } else {
+        default_nvim
+    };
 
     println!();
 
     let root = repo_root();
     let vault = PathBuf::from(&vault_path);
 
-    if matches!(selection, 0 | 3) {
+    if matches!(selection, 0 | 4) {
         let sink = detect_sink().unwrap_or_default();
         install_scripts_to(&root, &PathBuf::from(&bin_dir), &vault_path, &sink);
     }
-    if matches!(selection, 1 | 3) {
+    if matches!(selection, 1 | 4) {
         install_claude_md(&root, &vault);
     }
-    if matches!(selection, 2 | 3) {
+    if matches!(selection, 2 | 4) {
         install_obsidian_config(&root, &vault);
+    }
+    if matches!(selection, 3 | 4) {
+        install_nvim_plugins(&root, &vault_path, &nvim_dir);
     }
 
     println!();
-    println!("{} Update concluído.", style(CHECK).green());
+    println!("{} Update complete.", style(CHECK).green());
+    println!();
+}
+
+// ── dep helpers ───────────────────────────────────────────────────────────────
+
+fn dep_ok(name: &str) -> bool {
+    which::which(name).is_ok()
+}
+
+fn python_module_ok(module: &str) -> bool {
+    Command::new("python3")
+        .args(["-c", &format!("import {module}")])
+        .output()
+        .map(|o| o.status.success())
+        .unwrap_or(false)
+}
+
+/// Checks deps relevant to the selected components and prints warnings.
+/// Returns true if all required deps are present.
+fn warn_missing_deps(
+    install_scripts: bool,
+    install_hook: bool,
+    install_nvim: bool,
+) {
+    let mut missing: Vec<(&str, &str)> = vec![];
+    let mut optional_missing: Vec<(&str, &str)> = vec![];
+
+    // Core dep for everything
+    if !dep_ok("claude") {
+        missing.push(("claude", "curl -fsSL https://claude.ai/install.sh | sh"));
+    }
+
+    if install_scripts {
+        if !dep_ok("pw-record") {
+            missing.push(("pw-record", "pipewire (system package manager)"));
+        }
+        if !dep_ok("notify-send") {
+            missing.push(("notify-send", "libnotify (system package manager)"));
+        }
+        if !dep_ok("python3") {
+            missing.push(("python3", "system package manager"));
+        } else if !python_module_ok("faster_whisper") {
+            missing.push(("faster-whisper", "pip install faster-whisper"));
+        }
+        if !dep_ok("yt-dlp") {
+            missing.push(("yt-dlp", "pip install yt-dlp"));
+        }
+        if !dep_ok("curl") {
+            missing.push(("curl", "system package manager"));
+        }
+        // Optional for newsboat-save
+        if !dep_ok("rdrview") && !dep_ok("w3m") {
+            optional_missing.push(("rdrview / w3m", "article extraction — newsboat-save"));
+        }
+        // Optional for claude-amphora / daily-note
+        if !dep_ok("hyprctl") {
+            optional_missing.push(("hyprctl", "Hyprland — needed for claude-amphora and daily-note"));
+        }
+        if !dep_ok("alacritty") {
+            optional_missing.push(("alacritty", "needed for claude-amphora and daily-note scratchpads"));
+        }
+    }
+
+    if install_hook && !dep_ok("git") {
+        missing.push(("git", "system package manager"));
+    }
+
+    if install_nvim && !dep_ok("nvim") {
+        missing.push(("nvim", "system package manager"));
+    }
+
+    if missing.is_empty() && optional_missing.is_empty() {
+        return;
+    }
+
+    println!();
+    if !missing.is_empty() {
+        println!("{}", style("Missing dependencies:").bold().yellow());
+        for (dep, hint) in &missing {
+            println!(
+                "  {} {}  {}",
+                style(WARN).yellow(),
+                style(dep).bold(),
+                style(format!("→ {hint}")).dim()
+            );
+        }
+    }
+    if !optional_missing.is_empty() {
+        println!("{}", style("Optional (not installed):").bold().dim());
+        for (dep, hint) in &optional_missing {
+            println!(
+                "  {} {}  {}",
+                style("·").dim(),
+                style(dep).dim(),
+                style(format!("— {hint}")).dim()
+            );
+        }
+    }
+    if !missing.is_empty() {
+        println!();
+        println!(
+            "  {} Some required dependencies are missing.",
+            style(WARN).yellow()
+        );
+        println!("  Scripts may not work correctly until they are installed.");
+    }
     println!();
 }
 
@@ -577,14 +1139,14 @@ fn home() -> String {
 }
 
 fn repo_root() -> PathBuf {
-    // Ao rodar do repo: cli/target/debug/amphora → sobe 3 níveis
-    // Ao rodar instalado: usa env var AMPHORA_REPO ou o diretório do binário
+    // When running from repo: cli/target/debug/amphora → go up 3 levels
+    // When installed: use AMPHORA_REPO env var or binary directory
     if let Ok(repo) = std::env::var("AMPHORA_REPO") {
         return PathBuf::from(repo);
     }
     std::env::current_exe()
         .unwrap()
-        .parent().unwrap() // debug/ ou release/
+        .parent().unwrap() // debug/ or release/
         .parent().unwrap() // target/
         .parent().unwrap() // cli/
         .parent().unwrap() // repo root
@@ -610,12 +1172,12 @@ fn detect_sink() -> Option<String> {
 }
 
 fn install_scripts_to(repo: &Path, bin_dir: &Path, vault: &str, sink: &str) {
-    println!("{}", style("Instalando scripts...").bold());
+    println!("{}", style("Installing scripts...").bold());
     fs::create_dir_all(bin_dir).ok();
 
     let scripts_dir = repo.join("bin");
     if !scripts_dir.exists() {
-        println!("  {} bin/ não encontrado", style(WARN).yellow());
+        println!("  {} bin/ not found", style(WARN).yellow());
         return;
     }
 
@@ -650,7 +1212,7 @@ fn install_scripts_to(repo: &Path, bin_dir: &Path, vault: &str, sink: &str) {
 }
 
 fn install_git_hook(repo: &Path, vault: &str) {
-    println!("{}", style("Configurando git hook global...").bold());
+    println!("{}", style("Setting up global git hook...").bold());
 
     let hook_dir = PathBuf::from(home()).join(".config/git/hooks");
     let dst = hook_dir.join("post-commit");
@@ -658,7 +1220,7 @@ fn install_git_hook(repo: &Path, vault: &str) {
 
     if dst.exists() {
         println!(
-            "  {} post-commit já existe — compare com git-hooks/post-commit se necessário",
+            "  {} post-commit already exists — compare with git-hooks/post-commit if needed",
             style(WARN).yellow()
         );
         return;
@@ -680,18 +1242,18 @@ fn install_git_hook(repo: &Path, vault: &str) {
         .output()
         .ok();
 
-    println!("  {} post-commit instalado", style(CHECK).green());
+    println!("  {} post-commit installed", style(CHECK).green());
 }
 
 fn install_claude_md(repo: &Path, vault: &Path) {
-    println!("{}", style("Instalando CLAUDE.md...").bold());
+    println!("{}", style("Installing CLAUDE.md...").bold());
 
     let src = repo.join("claude/CLAUDE.md");
     let dst = vault.join("CLAUDE.md");
 
     if dst.exists() {
         println!(
-            "  {} CLAUDE.md já existe — compare com claude/CLAUDE.md se necessário",
+            "  {} CLAUDE.md already exists — compare with claude/CLAUDE.md if needed",
             style(WARN).yellow()
         );
         return;
@@ -699,23 +1261,321 @@ fn install_claude_md(repo: &Path, vault: &Path) {
 
     fs::create_dir_all(vault).ok();
     fs::copy(&src, &dst).unwrap();
-    println!("  {} CLAUDE.md copiado", style(CHECK).green());
+    println!("  {} CLAUDE.md copied", style(CHECK).green());
 }
 
 fn install_obsidian_config(repo: &Path, vault: &Path) {
-    println!("{}", style("Instalando .obsidian config...").bold());
+    println!("{}", style("Installing .obsidian config...").bold());
 
     let obsidian_src = repo.join("vault/.obsidian");
     if obsidian_src.exists() {
         copy_dir_all(&obsidian_src, &vault.join(".obsidian"));
-        println!("  {} .obsidian config instalado", style(CHECK).green());
+        println!("  {} .obsidian config installed", style(CHECK).green());
     }
 
     let templates_src = repo.join("vault/Templates");
     if templates_src.exists() {
         copy_dir_all(&templates_src, &vault.join("Templates"));
-        println!("  {} Templates instalados", style(CHECK).green());
+        println!("  {} Templates installed", style(CHECK).green());
     }
+}
+
+fn install_nvim_plugins(repo: &Path, vault: &str, nvim_dir: &str) {
+    println!("{}", style("Installing Neovim plugins...").bold());
+
+    let src_dir = repo.join("nvim/lua/plugins");
+    if !src_dir.exists() {
+        println!("  {} nvim/lua/plugins/ not found", style(WARN).yellow());
+        return;
+    }
+
+    let dst_dir = PathBuf::from(nvim_dir).join("lua/plugins");
+    fs::create_dir_all(&dst_dir).ok();
+
+    for entry in fs::read_dir(&src_dir).unwrap().flatten() {
+        let src = entry.path();
+        if src.extension().and_then(|e| e.to_str()) != Some("lua") {
+            continue;
+        }
+        let name = src.file_name().unwrap().to_string_lossy().to_string();
+        let dst = dst_dir.join(&name);
+
+        if dst.exists() {
+            println!(
+                "  {} {} — already exists, skipping",
+                style(WARN).yellow(),
+                style(&name).bold()
+            );
+            continue;
+        }
+
+        let content = fs::read_to_string(&src)
+            .unwrap_or_default()
+            .replace("~/amphora", vault);
+
+        fs::write(&dst, &content).unwrap();
+        println!(
+            "  {} {} {}",
+            style(CHECK).green(),
+            style(&name).bold(),
+            style(format!("→ {}", dst.display())).dim()
+        );
+    }
+}
+
+// ── uninstall ─────────────────────────────────────────────────────────────────
+
+fn cmd_uninstall(component: Option<&str>) {
+    let theme = ColorfulTheme::default();
+
+    println!();
+    println!("{}", style("=== amphora uninstall ===").bold().cyan());
+    println!();
+
+    let scripts = vec![
+        "meeting-record",
+        "meeting-transcribe",
+        "video-note",
+        "daily-note",
+        "newsboat-save",
+        "newsboat-save-bg",
+        "claude-amphora",
+        "vault-log-updates.sh",
+    ];
+
+    let nvim_plugins = vec!["obsidian.lua", "vault-tasks.lua", "vault-keymaps.lua"];
+
+    match component {
+        Some("scripts") => {
+            let default_bin = format!("{}/.local/bin", home());
+            let bin_dir: String = Input::with_theme(&theme)
+                .with_prompt("Scripts directory")
+                .default(default_bin)
+                .interact_text()
+                .unwrap();
+
+            if !Confirm::with_theme(&theme)
+                .with_prompt(format!("Remove {} scripts from {}?", scripts.len(), bin_dir))
+                .default(false)
+                .interact()
+                .unwrap()
+            {
+                println!("{} Cancelled.", WARN);
+                return;
+            }
+
+            let bin = PathBuf::from(&bin_dir);
+            for name in &scripts {
+                let path = bin.join(name);
+                if path.exists() {
+                    fs::remove_file(&path).ok();
+                    println!("  {} {} removed", style(CHECK).green(), style(name).bold());
+                } else {
+                    println!("  {} {} — not found", style("·").dim(), style(name).dim());
+                }
+            }
+        }
+
+        Some("hook") => {
+            let hook_path = PathBuf::from(home()).join(".config/git/hooks/post-commit");
+            if !hook_path.exists() {
+                println!("{} post-commit hook not found.", WARN);
+                return;
+            }
+            if !Confirm::with_theme(&theme)
+                .with_prompt(format!("Remove {}?", hook_path.display()))
+                .default(false)
+                .interact()
+                .unwrap()
+            {
+                println!("{} Cancelled.", WARN);
+                return;
+            }
+            fs::remove_file(&hook_path).ok();
+            println!("  {} post-commit removed", style(CHECK).green());
+        }
+
+        Some("claude") => {
+            let default_vault = format!("{}/amphora", home());
+            let vault_path: String = Input::with_theme(&theme)
+                .with_prompt("Vault path")
+                .default(default_vault)
+                .interact_text()
+                .unwrap();
+            let claude_md = PathBuf::from(&vault_path).join("CLAUDE.md");
+            if !claude_md.exists() {
+                println!("{} CLAUDE.md not found in vault.", WARN);
+                return;
+            }
+            if !Confirm::with_theme(&theme)
+                .with_prompt(format!("Remove {}?", claude_md.display()))
+                .default(false)
+                .interact()
+                .unwrap()
+            {
+                println!("{} Cancelled.", WARN);
+                return;
+            }
+            fs::remove_file(&claude_md).ok();
+            println!("  {} CLAUDE.md removed", style(CHECK).green());
+        }
+
+        Some("nvim") => {
+            let default_nvim = format!("{}/.config/nvim", home());
+            let nvim_dir: String = Input::with_theme(&theme)
+                .with_prompt("Neovim config directory")
+                .default(default_nvim)
+                .interact_text()
+                .unwrap();
+
+            if !Confirm::with_theme(&theme)
+                .with_prompt(format!("Remove {} plugin files from {}?", nvim_plugins.len(), nvim_dir))
+                .default(false)
+                .interact()
+                .unwrap()
+            {
+                println!("{} Cancelled.", WARN);
+                return;
+            }
+
+            let plugins_dir = PathBuf::from(&nvim_dir).join("lua/plugins");
+            for name in &nvim_plugins {
+                let path = plugins_dir.join(name);
+                if path.exists() {
+                    fs::remove_file(&path).ok();
+                    println!("  {} {} removed", style(CHECK).green(), style(name).bold());
+                } else {
+                    println!("  {} {} — not found", style("·").dim(), style(name).dim());
+                }
+            }
+        }
+
+        Some(other) => {
+            println!(
+                "{} Unknown component: {}",
+                style(WARN).yellow(),
+                style(other).bold()
+            );
+            println!();
+            println!(
+                "Available components: {}",
+                style("scripts  hook  claude  nvim").cyan()
+            );
+            println!();
+            return;
+        }
+
+        None => {
+            let options = vec![
+                "Scripts (from ~/.local/bin)",
+                "Global git hook (post-commit)",
+                "CLAUDE.md (from vault)",
+                "Neovim plugins",
+                "Everything",
+            ];
+            let selection = Select::with_theme(&theme)
+                .with_prompt("What to uninstall?")
+                .items(&options)
+                .default(0)
+                .interact()
+                .unwrap();
+
+            let do_scripts  = matches!(selection, 0 | 4);
+            let do_hook     = matches!(selection, 1 | 4);
+            let do_claude   = matches!(selection, 2 | 4);
+            let do_nvim     = matches!(selection, 3 | 4);
+
+            let default_bin   = format!("{}/.local/bin", home());
+            let default_vault = format!("{}/amphora", home());
+            let default_nvim  = format!("{}/.config/nvim", home());
+
+            let bin_dir = if do_scripts {
+                Input::with_theme(&theme)
+                    .with_prompt("Scripts directory")
+                    .default(default_bin)
+                    .interact_text()
+                    .unwrap()
+            } else { default_bin };
+
+            let vault_path = if do_claude {
+                Input::with_theme(&theme)
+                    .with_prompt("Vault path")
+                    .default(default_vault)
+                    .interact_text()
+                    .unwrap()
+            } else { default_vault };
+
+            let nvim_dir = if do_nvim {
+                Input::with_theme(&theme)
+                    .with_prompt("Neovim config directory")
+                    .default(default_nvim)
+                    .interact_text()
+                    .unwrap()
+            } else { default_nvim };
+
+            println!();
+            if !Confirm::with_theme(&theme)
+                .with_prompt("Confirm uninstall?")
+                .default(false)
+                .interact()
+                .unwrap()
+            {
+                println!("{} Cancelled.", WARN);
+                return;
+            }
+            println!();
+
+            if do_scripts {
+                println!("{}", style("Removing scripts...").bold());
+                let bin = PathBuf::from(&bin_dir);
+                for name in &scripts {
+                    let path = bin.join(name);
+                    if path.exists() {
+                        fs::remove_file(&path).ok();
+                        println!("  {} {} removed", style(CHECK).green(), style(name).bold());
+                    }
+                }
+            }
+
+            if do_hook {
+                println!("{}", style("Removing git hook...").bold());
+                let hook_path = PathBuf::from(home()).join(".config/git/hooks/post-commit");
+                if hook_path.exists() {
+                    fs::remove_file(&hook_path).ok();
+                    println!("  {} post-commit removed", style(CHECK).green());
+                } else {
+                    println!("  {} post-commit — not found", style("·").dim());
+                }
+            }
+
+            if do_claude {
+                println!("{}", style("Removing CLAUDE.md...").bold());
+                let claude_md = PathBuf::from(&vault_path).join("CLAUDE.md");
+                if claude_md.exists() {
+                    fs::remove_file(&claude_md).ok();
+                    println!("  {} CLAUDE.md removed", style(CHECK).green());
+                } else {
+                    println!("  {} CLAUDE.md — not found", style("·").dim());
+                }
+            }
+
+            if do_nvim {
+                println!("{}", style("Removing Neovim plugins...").bold());
+                let plugins_dir = PathBuf::from(&nvim_dir).join("lua/plugins");
+                for name in &nvim_plugins {
+                    let path = plugins_dir.join(name);
+                    if path.exists() {
+                        fs::remove_file(&path).ok();
+                        println!("  {} {} removed", style(CHECK).green(), style(name).bold());
+                    }
+                }
+            }
+
+            println!();
+            println!("{} Uninstall complete.", style(CHECK).green());
+        }
+    }
+    println!();
 }
 
 fn copy_dir_all(src: &Path, dst: &Path) {

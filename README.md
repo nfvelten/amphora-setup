@@ -1,86 +1,99 @@
 # amphora-setup
 
-Setup completo do meu PKMS (Personal Knowledge Management System) — um ambiente integrado para captura, processamento e recuperação de conhecimento, construído em torno do Obsidian, Claude Code e Neovim.
+Complete setup for my PKMS (Personal Knowledge Management System) — an integrated environment for capturing, processing and retrieving knowledge, built around Obsidian, Claude Code and Neovim.
 
-O objetivo é reduzir carga cognitiva ao externalizar o máximo possível: reuniões são transcritas e resumidas automaticamente, vídeos viram notas, commits são registrados no vault, e o Claude Code opera diretamente no vault com comandos customizados para knowledge management.
+The goal is to reduce cognitive load by externalizing as much as possible: meetings are transcribed and summarized automatically, videos become notes, commits are logged to the vault, and Claude Code operates directly in the vault with custom commands for knowledge management.
 
 ---
 
-## O que está incluído
+## What's included
 
 ### Scripts (`bin/`)
 
-| Script | O que faz |
+| Script | What it does |
 |---|---|
-| `meeting-record` | Grava áudio do sistema (monitor sink), transcreve com Whisper e gera resumo + action items via Claude. Toggle com um keybind. |
-| `meeting-transcribe` | Transcrição de áudio com `faster-whisper` (modelo medium, pt-BR). Usado pelo `meeting-record`. |
-| `video-note` | Recebe uma URL do YouTube, extrai legenda, resume com Claude e salva nota no vault. |
-| `daily-note` | Cria/abre a daily note do dia no Neovim via scratchpad do Hyprland. |
-| `vault-log-updates.sh` | Registra pacotes instalados/atualizados/removidos do sistema no vault. |
+| `meeting-record` | Records system audio (monitor sink), transcribes with Whisper and generates a summary + action items via Claude. Toggle with a keybind. |
+| `meeting-transcribe` | Audio transcription with `faster-whisper` (medium model). Used by `meeting-record`. |
+| `video-note` | Takes a YouTube URL, extracts subtitles, summarizes with Claude and saves a note to the vault. |
+| `daily-note` | Creates/opens today's daily note in Neovim via Hyprland scratchpad. |
+| `vault-log-updates.sh` | Logs installed/updated/removed system packages to the vault. |
+| `newsboat-save` | Takes a URL from newsboat, scrapes the article, summarizes with Claude and saves a note to the vault. |
+| `newsboat-save-bg` | Background wrapper for `newsboat-save` — keeps newsboat responsive while the article is processed. |
+| `claude-amphora` | Toggles a floating Claude Code scratchpad inside the vault. Bind to `Super+C` in Hyprland. |
 
 ### Git hook (`git-hooks/post-commit`)
 
-Hook global que roda após cada commit em qualquer repositório:
-- Registra o commit na daily note do vault com hash, repo e branch
-- Atualiza a nota do projeto correspondente no vault com contexto gerado pelo Claude
+Global hook that runs after every commit in any repository:
+- Logs the commit to the vault daily note with hash, repo and branch
+- Updates the corresponding project note in the vault with Claude-generated context
 
 ### Claude Code (`claude/CLAUDE.md`)
 
-`CLAUDE.md` do vault com comandos customizados para o Claude Code operar no vault:
+`CLAUDE.md` installed in the vault with custom commands for Claude Code to operate in the vault:
 
-- `/nota` — captura rápida de conhecimento
-- `/foco` — sessão de trabalho profundo
+- `/note` — quick knowledge capture
+- `/focus` — deep work session
 - `/standup` — daily meeting
-- `/review` — reflexão diária
-- `/semana` — planejamento semanal
-- `/semanal` — revisão semanal
-- `/retro` — retrospectiva mensal
-- `/morning` — rotina matinal
-- `/tarefa` — registro de tarefas
-- `/aprendizado` — captura de aprendizados técnicos
-- `/ideia` — captura rápida de ideias
-- `/brainstorm` — parceiro de brainstorming
-- `/leitura` — diário de leitura
-- `/log` — registro de sessão
-- `/contexto` — contexto de projeto
-- `/gmud` — criação de GMUD
-- `/check` — revisão de tarefas
+- `/review` — daily reflection
+- `/week` — weekly planning
+- `/weekly` — weekly review
+- `/retro` — monthly retrospective
+- `/morning` — morning routine
+- `/task` — task logging
+- `/learning` — technical learning capture
+- `/idea` — quick idea capture
+- `/brainstorm` — brainstorming partner
+- `/reading` — reading journal
+- `/log` — session log
+- `/context` — project context
+- `/change` — change management note
+- `/check` — task review
+
+### Neovim (`nvim/`)
+
+Plugin files for LazyVim that integrate Neovim with the vault:
+
+- `obsidian.lua` — obsidian.nvim config with workspace, pt-BR daily notes, `K` hover preview, `[[` wikilink autocomplete
+- `vault-tasks.lua` — task picker, quick capture, backlinks, all `<leader>v*` keymaps
+- `vault-keymaps.lua` — `<leader>od` (daily note), `<leader>ov` (open vault), `<leader>ot` (add task)
 
 ---
 
-## Requisitos
+## Requirements
 
 - **Claude Code** — `curl -fsSL https://claude.ai/install.sh | sh`
 - **Python 3** + `faster-whisper` — `pip install faster-whisper`
 - **yt-dlp** — `pip install yt-dlp`
-- **PipeWire** (`pw-record`) — para gravação de reuniões
-- **Obsidian** — vault em `~/amphora` (ou configure `AMPHORA_VAULT`)
-- **Neovim** — recomendado para edição do vault
-- **libnotify** (`notify-send`) — para notificações desktop
-- **Hyprland** — necessário apenas para `daily-note` (scratchpad)
+- **PipeWire** (`pw-record`) — for meeting recording
+- **Obsidian** — vault at `~/amphora` (or set `AMPHORA_VAULT`)
+- **Neovim** — recommended for vault editing
+- **libnotify** (`notify-send`) — for desktop notifications
+- **Hyprland** — only required for `daily-note` (scratchpad)
+- **rdrview** or **w3m** — article extraction for `newsboat-save`
+- **newsboat** — only required for `newsboat-save` integration
 
-### Plugins Obsidian
+### Obsidian plugins
 
-- `obsidian-git` — backup automático a cada minuto
-- `dataview` — queries de tarefas e notas
-- `templater-obsidian` — templates para daily notes
-- `obsidian-tasks-plugin` — gerenciamento de tarefas
-- `calendar` — navegação por daily notes
-- `obsidian-reminder-plugin` — lembretes de tarefas
+- `obsidian-git` — auto-backup every minute
+- `dataview` — task and note queries
+- `templater-obsidian` — templates for daily notes
+- `obsidian-tasks-plugin` — task management
+- `calendar` — daily note navigation
+- `obsidian-reminder-plugin` — task reminders
 
 ---
 
 ## CLI
 
-O setup é gerenciado pela CLI `amphora`, escrita em Rust.
+The setup is managed by the `amphora` CLI, written in Rust.
 
 ```
-amphora install    Wizard interativo de instalação
-amphora check      Verifica dependências do sistema
-amphora update     Atualiza scripts e configs no vault
+amphora install    Interactive installation wizard
+amphora check      Check system dependencies
+amphora update     Update scripts and configs in the vault
 ```
 
-### Instalação da CLI
+### Installing the CLI
 
 ```bash
 git clone https://github.com/nfvelten/amphora-setup
@@ -89,33 +102,54 @@ cargo build --release
 cp target/release/amphora ~/.local/bin/amphora
 ```
 
-### Uso
+### Usage
 
 ```bash
-# Verificar dependências antes de instalar
+# Check dependencies before installing
 amphora check
 
-# Wizard interativo — pergunta vault path, sink de áudio, o que instalar
+# Interactive wizard — asks for vault path, audio sink, what to install
 amphora install
 
-# Atualizar scripts/configs depois de um pull
+# Install a specific component
+amphora install scripts
+amphora install hook
+amphora install claude
+amphora install obsidian
+amphora install nvim
+
+# Update scripts/configs after a pull
 amphora update
 ```
 
-O wizard detecta automaticamente o sink de áudio via `pw-cli` e pré-preenche os defaults. Tudo configurável via prompt — nada é assumido.
+The wizard auto-detects the audio sink via `pw-cli` and pre-fills defaults. Everything is configurable via prompts — nothing is assumed.
+
+### Guide
+
+The `guide` command documents each part of the system:
+
+```bash
+amphora guide                # overview of all components
+amphora guide scripts        # what each script does and how to use it
+amphora guide claude         # list of available /cmd commands
+amphora guide hook           # how the git hook works
+amphora guide obsidian       # included plugins and templates
+amphora guide nvim           # Neovim plugin files and keymaps
+amphora guide omarchy        # Omarchy integration and mateCreations themes
+```
 
 ---
 
-## Integração com Neovim
+## Neovim integration
 
-A configuração do Neovim (incluindo integração com o vault via `oil.nvim`, `telescope` e navegação de wiki-links) está no repositório de dotfiles:
+The Neovim configuration (including vault integration via `oil.nvim`, `telescope` and wiki-link navigation) is available in the dotfiles repository:
 
 → [github.com/nfvelten/dotfiles](https://github.com/nfvelten/dotfiles)
 
 ---
 
-## Tema
+## Theme
 
-O ambiente inteiro usa o tema **mateCreations** (Yerba Mate / Tererê) — disponível para Obsidian, Neovim, VS Code e Zen Browser, com alternância automática claro/escuro baseada em horário:
+The entire environment uses the **mateCreations** theme (Yerba Mate / Tererê) — available for Obsidian, Neovim, VS Code and Zen Browser, with automatic light/dark switching based on time of day:
 
 → [github.com/nfvelten](https://github.com/nfvelten)

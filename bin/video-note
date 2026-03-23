@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# video-note <url> — baixa legenda do YouTube, resume com claude e salva no vault
+# video-note <url> — downloads YouTube subtitles, summarizes with claude and saves to the vault
 
 URL="$1"
 VAULT="${AMPHORA_VAULT:-$HOME/amphora}"
@@ -9,13 +9,13 @@ DAILY="$VAULT/Daily Notes/$(date +%Y)/${MONTHS[$(date +%-m)]}/$DATE.md"
 TMPDIR=$(mktemp -d /tmp/video-note.XXXXXX)
 
 if [ -z "$URL" ]; then
-  echo "Uso: video-note <url>"
+  echo "Usage: video-note <url>"
   exit 1
 fi
 
-notify-send -a "Video Note" "🎬 Buscando legenda..." "$URL"
+notify-send -a "Video Note" "🎬 Fetching subtitles..." "$URL"
 
-# Pega título e legenda (pt, pt-BR, en — nessa ordem de preferência)
+# Download subtitles (en, pt, pt-BR — in order of preference)
 yt-dlp \
   --no-playlist \
   --write-auto-sub \
@@ -28,24 +28,24 @@ yt-dlp \
   --output "$TMPDIR/%(title)s" \
   "$URL" 2>/tmp/video-note.log
 
-# Pega título do vídeo
+# Get video title
 TITLE=$(yt-dlp --no-playlist --get-title "$URL" 2>/dev/null)
 if [ -z "$TITLE" ]; then
-  notify-send -a "Video Note" "❌ Erro" "Não foi possível acessar o vídeo."
+  notify-send -a "Video Note" "❌ Error" "Could not access the video."
   rm -rf "$TMPDIR"
   exit 1
 fi
 
-# Encontra o arquivo de legenda
+# Find the subtitle file
 SUB_FILE=$(find "$TMPDIR" -name "*.vtt" | head -1)
 
 if [ -z "$SUB_FILE" ]; then
-  notify-send -a "Video Note" "❌ Sem legenda" "$TITLE"
+  notify-send -a "Video Note" "❌ No subtitles" "$TITLE"
   rm -rf "$TMPDIR"
   exit 1
 fi
 
-# Limpa o VTT — remove timestamps, tags e duplicatas
+# Clean VTT — remove timestamps, tags and duplicates
 TRANSCRIPT=$(cat "$SUB_FILE" \
   | grep -v '^WEBVTT' \
   | grep -v '^NOTE' \
@@ -58,51 +58,51 @@ TRANSCRIPT=$(cat "$SUB_FILE" \
   | sed 's/  */ /g')
 
 if [ -z "$TRANSCRIPT" ]; then
-  notify-send -a "Video Note" "❌ Legenda vazia" "$TITLE"
+  notify-send -a "Video Note" "❌ Empty subtitles" "$TITLE"
   rm -rf "$TMPDIR"
   exit 1
 fi
 
-notify-send -a "Video Note" "✍️ Gerando resumo..." "$TITLE"
+notify-send -a "Video Note" "✍️ Generating summary..." "$TITLE"
 
-# Resumo com claude
-SUMMARY=$("$HOME/.local/bin/claude" -p "Você é um assistente de estudo. Com base na transcrição do vídeo abaixo, gere um resumo em português com: **Tema principal**, **Pontos-chave** (3-6 bullets) e **Conclusão**. Seja conciso e direto.
+# Summarize with claude
+SUMMARY=$("$HOME/.local/bin/claude" -p "You are a study assistant. Based on the video transcript below, generate a summary with: **Main topic**, **Key points** (3-6 bullets) and **Conclusion**. Be concise and direct.
 
-Título: $TITLE
+Title: $TITLE
 
-Transcrição:
+Transcript:
 $TRANSCRIPT" < /dev/null 2>/dev/null)
 
-# Salva nota
+# Save note
 SAFE_TITLE=$(echo "$TITLE" | tr -d '/:*?"<>|\\' | cut -c1-60)
-mkdir -p "$VAULT/Pessoal/Vídeos"
-NOTE_FILE="$VAULT/Pessoal/Vídeos/${SAFE_TITLE}.md"
+mkdir -p "$VAULT/${AMPHORA_DIR_PERSONAL:-Personal}/Videos"
+NOTE_FILE="$VAULT/${AMPHORA_DIR_PERSONAL:-Personal}/Videos/${SAFE_TITLE}.md"
 
 cat > "$NOTE_FILE" <<NOTE
 ---
-tags: [vídeo, estudo]
-criado: $DATE
+tags: [video, study]
+created: $DATE
 url: $URL
 ---
 # $TITLE
 
-## Resumo
+## Summary
 
 $SUMMARY
 
 ---
 
-## Transcrição
+## Transcript
 
 $TRANSCRIPT
 NOTE
 
-# Linka na daily note
+# Link in daily note
 if [ -f "$DAILY" ]; then
-  if grep -q "^### Notas Rápidas" "$DAILY"; then
-    sed -i "/^### Notas Rápidas/a - 🎬 [[Vídeos/${SAFE_TITLE}]] — vídeo assistido" "$DAILY"
+  if grep -q "^### Quick Notes" "$DAILY"; then
+    sed -i "/^### Quick Notes/a - 🎬 [[Videos/${SAFE_TITLE}]] — video watched" "$DAILY"
   fi
 fi
 
 rm -rf "$TMPDIR"
-notify-send -a "Video Note" "✅ Salvo" "[[Vídeos/$SAFE_TITLE]]" -t 6000
+notify-send -a "Video Note" "✅ Saved" "[[Videos/$SAFE_TITLE]]" -t 6000

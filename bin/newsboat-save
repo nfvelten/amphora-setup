@@ -1,0 +1,78 @@
+#!/usr/bin/env bash
+# newsboat-save <url>
+# Scrapes an article, summarizes with claude and saves to the vault
+
+URL="$1"
+VAULT="${AMPHORA_VAULT:-$HOME/amphora}"
+DATE=$(date +%d-%m-%Y)
+MONTHS=("" "Janeiro" "Fevereiro" "Março" "Abril" "Maio" "Junho" "Julho" "Agosto" "Setembro" "Outubro" "Novembro" "Dezembro")
+DAILY="$VAULT/Daily Notes/$(date +%Y)/${MONTHS[$(date +%-m)]}/$DATE.md"
+
+notify-send -a "Newsboat" "📰 Saving..." "$URL"
+
+# Download HTML once
+RAW_HTML=$(curl -sL "$URL" 2>/dev/null)
+
+# Extract title from <title> tag
+HTML_TITLE=$(echo "$RAW_HTML" | grep -oiP '(?<=<title>)[^<]+' | head -1 | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')
+# Decode HTML entities
+HTML_TITLE=$(echo "$HTML_TITLE" | python3 -c "import sys, html; print(html.unescape(sys.stdin.read().strip()))" 2>/dev/null)
+
+# Extract title from URL slug as fallback
+URL_TITLE=$(echo "$URL" | grep -oP '[^/?#]+(?=[/?#]|$)' | grep -v '\.' | tail -1 | tr '-' ' ' | sed 's/\b\(.\)/\u\1/g')
+
+# Extract clean content with rdrview
+CONTENT=$(rdrview -T body "$URL" 2>/dev/null)
+
+if [ -z "$CONTENT" ]; then
+  # Fallback: w3m renders HTML as plain text
+  CONTENT=$(echo "$RAW_HTML" | w3m -dump -T text/html 2>/dev/null | head -c 8000)
+fi
+
+# Priority: HTML title > URL slug
+TITLE="${HTML_TITLE:-$URL_TITLE}"
+
+if [ -z "$CONTENT" ]; then
+  notify-send -a "Newsboat" "❌ Error" "Could not extract content."
+  exit 1
+fi
+
+TITLE="${TITLE:-Untitled article}"
+
+# Summarize with claude
+SUMMARY=$("$HOME/.local/bin/claude" -p "You are a reading assistant. Summarize the article below with: **Main idea**, **Key points** (3-5 bullets) and **Why it matters**. Be concise.
+
+$CONTENT" < /dev/null 2>/dev/null)
+
+# Sanitize title for use as filename
+SAFE_TITLE=$(echo "$TITLE" | tr -d '/:*?"<>|\\' | cut -c1-60)
+NOTE_FILE="$VAULT/${AMPHORA_DIR_PERSONAL:-Personal}/Reading/${SAFE_TITLE}.md"
+mkdir -p "$VAULT/${AMPHORA_DIR_PERSONAL:-Personal}/Reading"
+
+# Skip if already exists
+if [ -f "$NOTE_FILE" ]; then
+  notify-send -a "Newsboat" "⚠️ Already saved" "[[Reading/$SAFE_TITLE]]"
+  exit 0
+fi
+
+cat > "$NOTE_FILE" <<NOTE
+---
+tags: [reading, article]
+created: $DATE
+url: $URL
+---
+# $TITLE
+
+## Summary
+
+$SUMMARY
+NOTE
+
+# Link in daily note
+if [ -f "$DAILY" ]; then
+  if grep -q "^### Quick Notes" "$DAILY"; then
+    sed -i "/^### Quick Notes/a - 📰 [[Reading/${SAFE_TITLE}]] — article saved" "$DAILY"
+  fi
+fi
+
+notify-send -a "Newsboat" "✅ Saved" "[[Reading/$SAFE_TITLE]]" -t 6000

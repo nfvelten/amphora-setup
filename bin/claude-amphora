@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+# claude-amphora
+# Toggles a floating Claude Code scratchpad in the vault (Hyprland)
+# Bind to a key in your Hyprland config:
+#   bind = SUPER, C, exec, claude-amphora
+
+VAULT="${AMPHORA_VAULT:-$HOME/amphora}"
+
+# Check if the scratchpad is currently visible (before toggle)
+visible=$(hyprctl workspaces -j | python3 -c "
+import json, sys
+ws = json.load(sys.stdin)
+print('yes' if any(w.get('name') == 'special:claude-amphora' for w in ws) else 'no')
+" 2>/dev/null)
+
+# If the window doesn't exist yet, create it and wait for it to appear
+if ! hyprctl clients -j | grep -q '"class": "claude-amphora"'; then
+  alacritty --class claude-amphora -e bash -c "export PATH=\"$HOME/.local/bin:\$PATH\"; cd $VAULT && exec $HOME/.local/bin/claude" &
+  for _ in $(seq 1 20); do
+    sleep 0.1
+    hyprctl clients -j | grep -q '"class": "claude-amphora"' && break
+  done
+fi
+
+# Toggle: show or hide the scratchpad
+hyprctl dispatch togglespecialworkspace claude-amphora
+
+# Focus the window only when showing (not when hiding)
+if [ "$visible" = "no" ]; then
+  sleep 0.05
+  hyprctl dispatch focuswindow class:claude-amphora
+fi

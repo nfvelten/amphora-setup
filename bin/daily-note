@@ -1,46 +1,35 @@
 #!/usr/bin/env bash
-# Requer: Hyprland + alacritty + nvim
-# Configura via variável de ambiente: AMPHORA_VAULT (default: ~/amphora)
+# Requires: Hyprland + alacritty + nvim
+# Configure via env var: AMPHORA_VAULT (default: ~/amphora)
 VAULT="${AMPHORA_VAULT:-$HOME/amphora}"
 months=("" "Janeiro" "Fevereiro" "Março" "Abril" "Maio" "Junho" "Julho" "Agosto" "Setembro" "Outubro" "Novembro" "Dezembro")
 today=$(date +%d-%m-%Y)
 daily="$VAULT/Daily Notes/$(date +%Y)/${months[$(date +%-m)]}/$today.md"
 
-# Cria a daily note com template se nao existir
+# Create daily note from template if it doesn't exist
 if [ ! -f "$daily" ]; then
   mkdir -p "$(dirname "$daily")"
-  weekday=$(LC_TIME=pt_BR.UTF-8 date +%A 2>/dev/null)
-  if [[ "$weekday" =~ ^[A-Z] ]]; then
-    case "$weekday" in
-      Monday)    weekday="segunda-feira" ;;
-      Tuesday)   weekday="terça-feira" ;;
-      Wednesday) weekday="quarta-feira" ;;
-      Thursday)  weekday="quinta-feira" ;;
-      Friday)    weekday="sexta-feira" ;;
-      Saturday)  weekday="sábado" ;;
-      Sunday)    weekday="domingo" ;;
-    esac
-  fi
+  weekday=$(date +%A)
   {
     printf -- "---\n"
     printf "id: \"%s\"\n" "$today"
     printf "aliases: []\n"
     printf "tags:\n  - daily_notes\nenergia: \nmood: \n"
     printf -- "---\n"
-    printf "## Tarefas do Dia - %s (%s)\n\n" "$today" "$weekday"
-    printf "### Foco Principal do Dia\n\n*\n\n---\n\n"
-    printf "### Lista de Tarefas: #pessoal\n\n"
-    printf "* [ ] Ir a academia\n"
-    printf "* [ ] Ler 30 minutos\n"
-    printf "* [ ] Estudar 1 hora\n\n"
-    printf "### Lista de Tarefas: #trabalho\n\n"
+    printf "## Daily Tasks — %s (%s)\n\n" "$today" "$weekday"
+    printf "### Main Focus\n\n*\n\n---\n\n"
+    printf "### Tasks: #personal\n\n"
+    printf "* [ ] Go to the gym\n"
+    printf "* [ ] Read 30 minutes\n"
+    printf "* [ ] Study 1 hour\n\n"
+    printf "### Tasks: #work\n\n"
     printf "* [ ]\n\n---\n\n"
-    printf "### Notas Rápidas sobre as Tarefas / Resultados do Dia\n\n*\n\n"
-    printf "### Highlight do Dia\n\n*\n\n"
-    printf "### 📝 Log de Notas\n\n"
-    printf "| Hora | Nota | Contexto |\n"
+    printf "### Quick Notes\n\n*\n\n"
+    printf "### Day Highlight\n\n*\n\n"
+    printf "### 📝 Notes Log\n\n"
+    printf "| Time | Note | Context |\n"
     printf "|------|------|----------|\n\n"
-    printf "### Tarefas incompletas\n"
+    printf "### Incomplete tasks\n"
     printf '```tasks\n'
     printf "not done\n"
     printf "path includes Daily Notes/%s.md\n" "$today"
@@ -48,14 +37,14 @@ if [ ! -f "$daily" ]; then
   } > "$daily"
 fi
 
-# Verifica se o scratchpad esta visivel agora (antes do toggle)
+# Check if the scratchpad is currently visible (before toggle)
 visible=$(hyprctl workspaces -j | python3 -c "
 import json, sys
 ws = json.load(sys.stdin)
 print('yes' if any(w.get('name') == 'special:daily-note' for w in ws) else 'no')
 " 2>/dev/null)
 
-# Se a janela nao existe, cria e aguarda ela aparecer no scratchpad
+# If the window doesn't exist, create it and wait for it to appear in the scratchpad
 if ! hyprctl clients -j | grep -q '"class": "daily-note"'; then
   alacritty --class daily-note -e nvim "$daily" &
   for _ in $(seq 1 20); do
@@ -64,10 +53,10 @@ if ! hyprctl clients -j | grep -q '"class": "daily-note"'; then
   done
 fi
 
-# Toggle: mostra ou esconde o scratchpad
+# Toggle: show or hide the scratchpad
 hyprctl dispatch togglespecialworkspace daily-note
 
-# Foca a janela somente ao mostrar (nao ao esconder)
+# Focus the window only when showing (not when hiding)
 if [ "$visible" = "no" ]; then
   sleep 0.05
   hyprctl dispatch focuswindow class:daily-note
