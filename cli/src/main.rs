@@ -30,10 +30,15 @@ enum Commands {
     Check,
     /// Atualiza scripts e configs no vault
     Update,
-    /// Mostra ajuda detalhada dos comandos
+    /// Mostra ajuda detalhada dos comandos da CLI
     Help {
         /// Comando específico (opcional)
         command: Option<String>,
+    },
+    /// Guia das features do sistema amphora
+    Guide {
+        /// Tópico específico: scripts, claude, hook, obsidian (opcional)
+        topic: Option<String>,
     },
 }
 
@@ -45,6 +50,7 @@ fn main() {
         Some(Commands::Check) => cmd_check(),
         Some(Commands::Update) => cmd_update(),
         Some(Commands::Help { command }) => cmd_help(command.as_deref()),
+        Some(Commands::Guide { topic }) => cmd_guide(topic.as_deref()),
         None => cmd_help(None),
     }
 }
@@ -160,6 +166,184 @@ fn cmd_help(command: Option<&str>) {
                 "Repositório: {}",
                 style("github.com/nfvelten/amphora-setup").dim()
             );
+        }
+    }
+    println!();
+}
+
+// ── guide ─────────────────────────────────────────────────────────────────────
+
+fn cmd_guide(topic: Option<&str>) {
+    match topic {
+        Some("scripts") => {
+            println!();
+            println!("{}", style("Scripts de automação").bold().cyan());
+            println!();
+
+            println!("{}", style("meeting-record").bold().green());
+            println!("  Grava o áudio do sistema (monitor sink via PipeWire).");
+            println!("  Ao parar a gravação, transcreve com faster-whisper e envia");
+            println!("  a transcrição para o Claude, que gera um resumo estruturado");
+            println!("  com contexto, decisões, próximos passos e participantes.");
+            println!("  A nota é salva em Trabalho/Reuniões/ e linkada na daily note.");
+            println!("  {}", style("Uso: keybind (ex: Super+R para iniciar/parar)").dim());
+            println!();
+
+            println!("{}", style("meeting-transcribe").bold().green());
+            println!("  Transcreve um arquivo de áudio usando faster-whisper (modelo medium).");
+            println!("  Usado internamente pelo meeting-record, mas pode ser chamado diretamente.");
+            println!("  {}", style("Uso: meeting-transcribe <arquivo.wav>").dim());
+            println!();
+
+            println!("{}", style("video-note").bold().green());
+            println!("  Recebe uma URL do YouTube, baixa a legenda via yt-dlp,");
+            println!("  limpa o VTT e envia para o Claude gerar um resumo com tema");
+            println!("  principal, pontos-chave e conclusão.");
+            println!("  A nota é salva em Pessoal/Vídeos/ e linkada na daily note.");
+            println!("  {}", style("Uso: video-note <url>").dim());
+            println!();
+
+            println!("{}", style("daily-note").bold().green());
+            println!("  Abre (ou cria) a daily note do dia no Neovim via scratchpad do Hyprland.");
+            println!("  Se a nota não existe, cria com o template completo: foco do dia,");
+            println!("  tarefas pessoal/trabalho, notas rápidas e log de notas.");
+            println!("  {}", style("Requer: Hyprland + alacritty").dim());
+            println!("  {}", style("Uso: keybind (ex: Super+D)").dim());
+            println!();
+
+            println!("{}", style("vault-log-updates.sh").bold().green());
+            println!("  Registra pacotes instalados, atualizados ou removidos do sistema");
+            println!("  (via pacman) em Pessoal/Sistema/Updates.md no vault.");
+            println!("  {}", style("Uso: chamado via hook do sistema ou manualmente").dim());
+        }
+
+        Some("claude") => {
+            println!();
+            println!("{}", style("Comandos Claude Code").bold().cyan());
+            println!("  Disponíveis quando o Claude Code está aberto dentro do vault.");
+            println!();
+
+            let commands = vec![
+                ("/nota",       "Captura rápida de conhecimento — cria nota estruturada com contexto, links e backlinks"),
+                ("/foco",       "Abre uma sessão de trabalho profundo com contexto do projeto e bloqueia distrações"),
+                ("/standup",    "Daily meeting — registra o que foi feito, o que será feito e bloqueios"),
+                ("/review",     "Reflexão diária — o que funcionou, o que melhorar, highlight do dia"),
+                ("/semana",     "Planejamento semanal — define prioridades e metas da semana"),
+                ("/semanal",    "Revisão semanal — retrospectiva do que foi entregue e aprendido"),
+                ("/retro",      "Retrospectiva mensal — análise mais ampla de progresso e ajustes"),
+                ("/morning",    "Rotina matinal — abre o dia com intenção e revisão das tarefas"),
+                ("/tarefa",     "Registra uma tarefa de trabalho com contexto, prioridade e prazo"),
+                ("/aprendizado","Captura aprendizado técnico — cria nota de estudo com conceitos e referências"),
+                ("/ideia",      "Captura rápida de ideia — salva antes de perder sem interromper o fluxo"),
+                ("/brainstorm", "Parceiro de brainstorming — explora ideias de forma não-linear"),
+                ("/leitura",    "Diário de leitura — registra impressões, citações e insights de um livro"),
+                ("/log",        "Registro de sessão — documenta o que foi feito numa sessão de trabalho"),
+                ("/contexto",   "Carrega contexto de um projeto específico para a conversa"),
+                ("/gmud",       "Cria nota de GMUD (Gestão de Mudança) para deploy ou alteração em produção"),
+                ("/check",      "Revisão de tarefas — lista pendências e ajuda a priorizar"),
+            ];
+
+            for (cmd, desc) in commands {
+                println!("  {}  {}", style(cmd).green().bold(), desc);
+            }
+        }
+
+        Some("hook") => {
+            println!();
+            println!("{}", style("Git hook — post-commit").bold().cyan());
+            println!();
+            println!("Hook global que roda automaticamente após cada commit em qualquer repositório.");
+            println!();
+            println!("{}", style("O que faz:").bold());
+            println!("  {} Registra o commit na daily note do vault", ARROW);
+            println!("      Formato: hash · repo (branch): mensagem do commit");
+            println!();
+            println!("  {} Atualiza a nota do projeto correspondente no vault", ARROW);
+            println!("      Busca em Pessoal/Projetos/ e Trabalho/ uma nota com o nome do repo.");
+            println!("      Se encontrar, adiciona o commit em ## Commits com contexto gerado");
+            println!("      pelo Claude (uma frase sobre o objetivo ou impacto da mudança).");
+            println!();
+            println!("{}", style("Observações:").bold());
+            println!("  - Commits no próprio vault (amphora) são ignorados");
+            println!("  - O contexto do Claude roda em background, não bloqueia o commit");
+            println!("  - A nota do projeto precisa existir para receber o log");
+        }
+
+        Some("obsidian") => {
+            println!();
+            println!("{}", style("Obsidian — configuração").bold().cyan());
+            println!();
+            println!("{}", style("Plugins:").bold());
+            let plugins = vec![
+                ("obsidian-git",          "Backup automático a cada 1 min, auto-pull no boot, sync via merge"),
+                ("dataview",              "Queries de tarefas e notas nas daily notes"),
+                ("templater-obsidian",    "Templates com lógica: data atual, dia da semana em pt-BR, prompts"),
+                ("obsidian-tasks-plugin", "Gerenciamento de tarefas com queries, filtros e datas"),
+                ("calendar",              "Navegação por daily notes via calendário na sidebar"),
+                ("obsidian-reminder-plugin", "Lembretes de tarefas com notificação desktop"),
+                ("typewriter-mode",       "Foca a linha atual no centro da tela durante a escrita"),
+            ];
+            for (p, desc) in plugins {
+                println!("  {}  {}", style(p).green().bold(), desc);
+            }
+            println!();
+            println!("{}", style("Templates incluídos:").bold());
+            println!("  Daily Notes      Template completo com foco, tarefas, log e dataview");
+            println!("  Aprendizado      Estrutura para notas de estudo técnico");
+            println!("  Weekly Review    Retrospectiva semanal com queries de tarefas");
+            println!("  Demanda          Template para demandas de trabalho com retrospectiva");
+            println!("  Review           Template para reviews de filmes, séries e podcasts");
+            println!();
+            println!("{}", style("Tema:").bold());
+            println!("  O vault funciona melhor com o tema mateCreations (Yerba Mate / Tererê).");
+            println!("  {} github.com/nfvelten", ARROW);
+        }
+
+        Some(other) => {
+            println!();
+            println!(
+                "{} Tópico {} não reconhecido.",
+                style(WARN).yellow(),
+                style(other).bold()
+            );
+            println!();
+            println!(
+                "Tópicos disponíveis: {}",
+                style("scripts  claude  hook  obsidian").cyan()
+            );
+        }
+
+        None => {
+            println!();
+            println!("{}", style("amphora guide — visão geral do sistema").bold().cyan());
+            println!();
+            println!("O amphora é um PKMS (Personal Knowledge Management System) construído");
+            println!("para reduzir carga cognitiva e externalizar o pensamento em notas");
+            println!("estruturadas, com automação de captura e integração com IA.");
+            println!();
+            println!("{}", style("Componentes:").bold());
+            println!(
+                "  {}        Scripts de automação — gravação, transcrição, ingestão de vídeos",
+                style("scripts").green().bold()
+            );
+            println!(
+                "  {}         Comandos do Claude Code no vault — /nota, /foco, /standup...",
+                style("claude").green().bold()
+            );
+            println!(
+                "  {}           Git hook global — registra commits nas notas do vault",
+                style("hook").green().bold()
+            );
+            println!(
+                "  {}        Configuração do Obsidian — plugins, templates e tema",
+                style("obsidian").green().bold()
+            );
+            println!();
+            println!("{}", style("Exemplos:").bold());
+            println!("  amphora guide scripts    # o que cada script faz e como usar");
+            println!("  amphora guide claude     # lista de comandos /cmd disponíveis");
+            println!("  amphora guide hook       # como o git hook funciona");
+            println!("  amphora guide obsidian   # plugins e templates incluídos");
         }
     }
     println!();
