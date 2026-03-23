@@ -70,30 +70,39 @@ Hook global que roda após cada commit em qualquer repositório:
 
 ---
 
-## Instalação
+## CLI
+
+O setup é gerenciado pela CLI `amphora`, escrita em Rust.
+
+```
+amphora install    Wizard interativo de instalação
+amphora check      Verifica dependências do sistema
+amphora update     Atualiza scripts e configs no vault
+```
+
+### Instalação da CLI
 
 ```bash
 git clone https://github.com/nfvelten/amphora-setup
-cd amphora-setup
-bash install.sh
+cd amphora-setup/cli
+cargo build --release
+cp target/release/amphora ~/.local/bin/amphora
 ```
 
-O script instala os binários em `~/.local/bin/`, configura o git hook global e copia o `CLAUDE.md` para o vault.
-
-### Configuração via variáveis de ambiente
-
-Adicione ao seu `~/.bashrc` ou `~/.zshrc` se necessário:
+### Uso
 
 ```bash
-export AMPHORA_VAULT="$HOME/amphora"          # caminho do vault (default: ~/amphora)
-export AMPHORA_SINK_MONITOR="alsa_output..."  # sink de áudio para meeting-record
-                                              # detectado automaticamente se não definido
+# Verificar dependências antes de instalar
+amphora check
+
+# Wizard interativo — pergunta vault path, sink de áudio, o que instalar
+amphora install
+
+# Atualizar scripts/configs depois de um pull
+amphora update
 ```
 
-Para descobrir seu sink de áudio:
-```bash
-pw-cli list-objects | grep -o 'alsa_output[^"]*monitor'
-```
+O wizard detecta automaticamente o sink de áudio via `pw-cli` e pré-preenche os defaults. Tudo configurável via prompt — nada é assumido.
 
 ---
 

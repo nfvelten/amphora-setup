@@ -1,0 +1,15 @@
+[package]
+name = "amphora"
+version = "0.1.0"
+edition = "2021"
+description = "CLI for setting up the amphora PKMS environment"
+
+[[bin]]
+name = "amphora"
+path = "src/main.rs"
+
+[dependencies]
+clap = { version = "4", features = ["derive"] }
+dialoguer = "0.11"
+console = "0.15"
+which = "6"
