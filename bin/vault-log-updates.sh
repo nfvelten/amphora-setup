@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-VAULT="/home/nfvelten/amphora"
-FILE="$VAULT/Pessoal/Sistema/Updates.md"
+VAULT="${AMPHORA_VAULT:-$HOME/amphora}"
+FILE="$VAULT/${AMPHORA_DIR_PERSONAL:-Personal}/System/Updates.md"
 DATE=$(date +%d-%m-%Y)
 TIME=$(date +%H:%M)
 
@@ -12,7 +12,7 @@ PACKAGES=$(grep "\[ALPM\] \(upgraded\|installed\|removed\)" /var/log/pacman.log 
       printf "- %s `%s`\n", action, pkg
     }')
 
-[ -z "$PACKAGES" ] && PACKAGES="- (sem pacotes registrados)"
+[ -z "$PACKAGES" ] && PACKAGES="- (no packages registered)"
 
 {
   echo ""

@@ -225,7 +225,7 @@ return {
           cwd = vim.fn.expand("~/amphora"),
           title = "Tasks — Work",
           args = vault_args,
-          exclude_tags = { "pessoal" },
+          exclude_tags = { "personal" },
         })
       end,
       desc = "Work tasks (vault)",
@@ -237,7 +237,7 @@ return {
           cwd = vim.fn.expand("~/amphora"),
           title = "Tasks — Personal",
           args = vault_args,
-          require_tag = "pessoal",
+          require_tag = "personal",
         })
       end,
       desc = "Personal tasks (vault)",

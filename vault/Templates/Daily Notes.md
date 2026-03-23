@@ -4,40 +4,40 @@ tags:
 mood:
 energia:
 ---
-## Tarefas do Dia - <% tp.file.title %> (<% moment(tp.file.title, "DD-MM-YYYY").locale('pt-br').format('dddd') %>)
+## Daily Tasks — <% tp.file.title %> (<% moment(tp.file.title, "DD-MM-YYYY").format('dddd') %>)
 
-### Foco Principal do Dia
+### Main Focus
 
 *
 
 ---
 
-### Lista de Tarefas: #pessoal
+### Tasks: #personal
 
-- [ ] Ir a academia
-- [ ] Ler 30 minutos
-- [ ] Estudar 1 hora
+- [ ] Go to the gym
+- [ ] Read 30 minutes
+- [ ] Study 1 hour
 
-### Lista de Tarefas: #trabalho
+### Tasks: #work
 
 - [ ] #task
 
 ---
 
-### Notas Rápidas sobre as Tarefas / Resultados do Dia
+### Quick Notes
 
 *
 
-### Highlight do Dia
+### Day Highlight
 
 *
 
-### 📝 Log de Notas
+### 📝 Notes Log
 
-| Hora | Nota | Contexto |
-|------|------|----------|
+| Time | Note | Context |
+|------|------|---------|
 
-### Tarefas incompletas
+### Incomplete tasks
 ```tasks
 not done
 path includes Daily Notes/<% tp.file.title %>.md

@@ -1,69 +1,69 @@
 ---
 tags: [weekly_review]
-semana: <% moment().isoWeek() %>
-periodo: <% moment().startOf('isoWeek').locale('pt-br').format('DD/MM') %> – <% moment().endOf('isoWeek').locale('pt-br').format('DD/MM/YYYY') %>
+week: <% moment().isoWeek() %>
+period: <% moment().startOf('isoWeek').format('DD/MM') %> – <% moment().endOf('isoWeek').format('DD/MM/YYYY') %>
 ---
-# Revisão Semanal — Semana <% moment().isoWeek() %>
-*<% moment().startOf('isoWeek').locale('pt-br').format('DD MMM') %> a <% moment().endOf('isoWeek').locale('pt-br').format('DD MMM YYYY') %>*
-
----
-
-## 🔍 Reflexão
-
-**O que correu bem?**
--
-
-**O que poderia melhorar?**
--
-
-**Maior aprendizado da semana:**
--
-
-**Momento de destaque:**
--
+# Weekly Review — Week <% moment().isoWeek() %>
+*<% moment().startOf('isoWeek').format('DD MMM') %> to <% moment().endOf('isoWeek').format('DD MMM YYYY') %>*
 
 ---
 
-## 💼 Trabalho
+## 🔍 Reflection
 
-**O que entreguei?**
+**What went well?**
 -
 
-**O que ficou em aberto?**
+**What could improve?**
 -
 
-**Bloqueios ou dificuldades?**
+**Biggest learning of the week:**
+-
+
+**Highlight moment:**
 -
 
 ---
 
-## 🧠 Conhecimento
+## 💼 Work
 
-**O que aprendi de técnico?**
+**What did I deliver?**
 -
 
-**Algo que vale virar nota permanente em [[Pessoal/Estudos]]?**
+**What's still open?**
+-
+
+**Blockers or difficulties?**
 -
 
 ---
 
-## ⚡ Energia & Rotina
+## 🧠 Knowledge
 
-**Academia:**
-**Leitura:**
-**Sono:**
-**Dieta:**
+**What did I learn technically?**
+-
+
+**Anything worth turning into a permanent note?**
+-
 
 ---
 
-## 📋 Tarefas concluídas
+## ⚡ Energy & Routine
+
+**Gym:**
+**Reading:**
+**Sleep:**
+**Diet:**
+
+---
+
+## 📋 Completed tasks
 
 ```tasks
 done after <% moment().startOf('isoWeek').subtract(1, 'day').format('YYYY-MM-DD') %>
 done before <% moment().endOf('isoWeek').add(1, 'day').format('YYYY-MM-DD') %>
 ```
 
-## 📋 Pendências em aberto
+## 📋 Open tasks
 
 ```tasks
 not done
@@ -72,7 +72,7 @@ path includes Daily Notes
 
 ---
 
-## 🎯 Foco da próxima semana
+## 🎯 Focus for next week
 
 1.
 2.

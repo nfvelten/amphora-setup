@@ -99,7 +99,7 @@ fn cmd_help(command: Option<&str>) {
             println!("  {} Lets you choose what to install:", ARROW);
             println!("      - Automation scripts (meeting-record, video-note, daily-note...)");
             println!("      - Global git hook (logs commits to the vault daily note)");
-            println!("      - CLAUDE.md (commands /nota, /standup, /foco and others)");
+            println!("      - CLAUDE.md (commands /note, /standup, /focus and others)");
             println!("      - .obsidian config + Templates");
             println!("      - Neovim plugins (obsidian.nvim, vault-tasks, keymaps)");
             println!();
@@ -562,7 +562,7 @@ fn cmd_install_all() {
     let options = vec![
         "Scripts (meeting-record, video-note, daily-note...)",
         "Global git hook (post-commit → logs commits to vault)",
-        "CLAUDE.md in vault (/nota, /standup, /foco commands...)",
+        "CLAUDE.md in vault (/note, /standup, /focus and others)",
         ".obsidian config + Templates",
         "Neovim plugins (obsidian.nvim, vault-tasks, keymaps)",
         "All of the above",

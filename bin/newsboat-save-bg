@@ -1,4 +1,4 @@
 #!/usr/bin/env bash
-# Wrapper para rodar newsboat-save em background sem vazar URL para o shell
+# Wrapper to run newsboat-save in the background without blocking newsboat
 "$HOME/.local/bin/newsboat-save" "$@" &
 disown

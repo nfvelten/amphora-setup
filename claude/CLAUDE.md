@@ -4,23 +4,23 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Overview
 
-This is a personal Obsidian knowledge vault (amphora), used for note-taking and knowledge management. Notes are written in Portuguese (pt-BR) and edited via both Obsidian and Neovim. Version control is handled automatically by the obsidian-git plugin, which auto-commits every minute with the message `vault backup: {{date}}`.
+This is a personal Obsidian knowledge vault (amphora), used for note-taking and knowledge management. Version control is handled automatically by the obsidian-git plugin, which auto-commits every minute with the message `vault backup: {{date}}`.
 
 ## Structure
 
 - `Daily Notes/` — Daily entries named `dd-mm-yyyy.md`, organized by month in subdirectories (e.g., `Agosto/`, `Julho/`)
-- `Pessoal/` — Personal topics: diet, workouts, reading lists, routines, tasks
-- `Trabalho/` — Work-related notes: projects, initiatives, technical solutions
+- `Personal/` — Personal topics: diet, workouts, reading lists, routines, tasks
+- `Work/` — Work-related notes: projects, initiatives, technical solutions
 - `Posts/` — Draft posts
 - `Templates/` — Obsidian templates using Templater plugin syntax (`<% tp.* %>`)
 
 ## Conventions
 
 - Daily note filenames: `dd-mm-yyyy.md`
-- Tags in frontmatter YAML (`tags: [daily_notes]`) and inline (`#pessoal`, `#trabalho`)
+- Tags in frontmatter YAML (`tags: [daily_notes]`) and inline (`#personal`, `#work`)
 - Internal links use Obsidian wiki-link syntax: `[[note name]]`
 - Tasks use Obsidian Tasks plugin syntax: `- [ ] task` with optional tags/dates
-- Daily notes template includes sections: Foco Principal, Lista de Tarefas (pessoal + trabalho), Notas Rápidas, Tarefas incompletas (dataview query block)
+- Daily notes template includes sections: Main Focus, Tasks (#personal + #work), Quick Notes, Incomplete tasks (tasks query block)
 
 ## Plugins in Use
 
