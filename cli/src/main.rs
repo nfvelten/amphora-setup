@@ -14,7 +14,8 @@ static ARROW: Emoji<'_, '_> = Emoji("→ ", "");
 #[command(
     name = "amphora",
     about = "Setup e gestão do ambiente PKMS amphora",
-    version
+    version,
+    disable_help_subcommand = true
 )]
 struct Cli {
     #[command(subcommand)]
@@ -29,6 +30,11 @@ enum Commands {
     Check,
     /// Atualiza scripts e configs no vault
     Update,
+    /// Mostra ajuda detalhada dos comandos
+    Help {
+        /// Comando específico (opcional)
+        command: Option<String>,
+    },
 }
 
 fn main() {
@@ -38,10 +44,92 @@ fn main() {
         Some(Commands::Install) => cmd_install(),
         Some(Commands::Check) => cmd_check(),
         Some(Commands::Update) => cmd_update(),
-        None => {
-            println!("{}", style("amphora — PKMS setup").bold().cyan());
+        Some(Commands::Help { command }) => cmd_help(command.as_deref()),
+        None => cmd_help(None),
+    }
+}
+
+// ── help ──────────────────────────────────────────────────────────────────────
+
+fn cmd_help(command: Option<&str>) {
+    match command {
+        Some("install") => {
             println!();
-            println!("Comandos disponíveis:");
+            println!("{}", style("amphora install").bold().cyan());
+            println!();
+            println!("Wizard interativo que configura o ambiente amphora do zero.");
+            println!();
+            println!("{}", style("O que faz:").bold());
+            println!("  {} Pergunta o caminho do vault Obsidian", ARROW);
+            println!("  {} Pergunta o diretório para os scripts (~/.local/bin)", ARROW);
+            println!("  {} Detecta automaticamente o sink de áudio (PipeWire)", ARROW);
+            println!("  {} Permite escolher o que instalar:", ARROW);
+            println!("      - Scripts de automação (meeting-record, video-note, daily-note...)");
+            println!("      - Git hook global (registra commits na daily note do vault)");
+            println!("      - CLAUDE.md (comandos /nota, /standup, /foco e outros)");
+            println!("      - .obsidian config + Templates");
+            println!();
+            println!("{}", style("Uso:").bold());
+            println!("  amphora install");
+            println!();
+            println!("{}", style("Variáveis de ambiente:").bold());
+            println!("  AMPHORA_VAULT         Caminho do vault (default: ~/amphora)");
+            println!("  AMPHORA_SINK_MONITOR  Sink de áudio para meeting-record");
+            println!("                        (detectado via pw-cli se não definido)");
+        }
+        Some("check") => {
+            println!();
+            println!("{}", style("amphora check").bold().cyan());
+            println!();
+            println!("Verifica se todas as dependências necessárias estão instaladas.");
+            println!();
+            println!("{}", style("Dependências verificadas:").bold());
+            println!("  claude         Claude Code CLI — engine de IA do sistema");
+            println!("  nvim           Neovim — edição do vault pelo terminal");
+            println!("  python3        Necessário para meeting-transcribe e video-note");
+            println!("  faster-whisper Transcrição de áudio local (pip install faster-whisper)");
+            println!("  yt-dlp         Download de legendas do YouTube (pip install yt-dlp)");
+            println!("  pw-record      Gravação de áudio via PipeWire (pipewire)");
+            println!("  notify-send    Notificações desktop (libnotify)");
+            println!("  git            Versionamento do vault");
+            println!();
+            println!("{}", style("Uso:").bold());
+            println!("  amphora check");
+        }
+        Some("update") => {
+            println!();
+            println!("{}", style("amphora update").bold().cyan());
+            println!();
+            println!("Atualiza scripts e configs já instalados após um git pull.");
+            println!("Útil para sincronizar mudanças sem rodar o wizard de instalação completo.");
+            println!();
+            println!("{}", style("O que pode atualizar:").bold());
+            println!("  Scripts          Copia versões novas para ~/.local/bin");
+            println!("  CLAUDE.md        Atualiza comandos do Claude Code no vault");
+            println!("  .obsidian config Atualiza configurações e templates do Obsidian");
+            println!();
+            println!("{}", style("Uso:").bold());
+            println!("  amphora update");
+        }
+        Some(other) => {
+            println!();
+            println!(
+                "{} Comando {} não reconhecido.",
+                style(WARN).yellow(),
+                style(other).bold()
+            );
+            println!();
+            println!(
+                "Comandos disponíveis: {}",
+                style("install  check  update  help").cyan()
+            );
+        }
+        None => {
+            println!();
+            println!("{}", style("amphora").bold().cyan());
+            println!("Setup e gestão do ambiente PKMS amphora.");
+            println!();
+            println!("{}", style("Comandos:").bold());
             println!(
                 "  {}  {}",
                 style("install").green().bold(),
@@ -57,13 +145,24 @@ fn main() {
                 style("update").green().bold(),
                 "Atualiza scripts e configs no vault"
             );
+            println!(
+                "  {}     {}",
+                style("help").green().bold(),
+                "Mostra ajuda detalhada dos comandos"
+            );
+            println!();
+            println!("{}", style("Exemplos:").bold());
+            println!("  amphora check          # verificar dependências antes de instalar");
+            println!("  amphora install        # wizard de instalação completo");
+            println!("  amphora help install   # ajuda detalhada de um comando específico");
             println!();
             println!(
-                "Use {} para mais detalhes.",
-                style("amphora <comando> --help").dim()
+                "Repositório: {}",
+                style("github.com/nfvelten/amphora-setup").dim()
             );
         }
     }
+    println!();
 }
 
 // ── install ───────────────────────────────────────────────────────────────────
