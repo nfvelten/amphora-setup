@@ -1,0 +1,99 @@
+#!/usr/bin/env bash
+# meeting-record — grava reunião, transcreve com faster-whisper e resume com claude
+# Super+R: inicia gravação | Super+R de novo: para e processa
+
+PIDFILE="/tmp/meeting-record.pid"
+AUDIOFILE="/tmp/meeting-record.wav"
+VAULT="${AMPHORA_VAULT:-$HOME/amphora}"
+MEETINGS_DIR="$VAULT/Trabalho/Reuniões"
+# Descubra o seu sink com: pw-cli list-objects | grep -A2 'alsa_output'
+SINK_MONITOR="${AMPHORA_SINK_MONITOR:-$(pw-cli list-objects 2>/dev/null | grep -o 'alsa_output[^"]*monitor' | head -1)}"
+
+notify() {
+  notify-send -a "Meeting Record" "$1" "$2" ${3:+-t $3}
+}
+
+# --- PARAR gravação e processar ---
+if [ -f "$PIDFILE" ]; then
+  PID=$(cat "$PIDFILE")
+  kill "$PID" 2>/dev/null
+  rm -f "$PIDFILE"
+  notify "⏹ Gravação parada" "Transcrevendo em background..."
+
+  (
+    # Aguarda arquivo fechar antes de transcrever
+    sleep 1
+
+    # Transcrição
+    TRANSCRIPT=$("$HOME/.local/bin/meeting-transcribe" "$AUDIOFILE" 2>/tmp/meeting-transcribe.log)
+
+    if [ -z "$TRANSCRIPT" ]; then
+      notify "❌ Sem fala detectada" "Nenhum conteúdo para salvar."
+      rm -f "$AUDIOFILE"
+      exit 1
+    fi
+
+    # Resumo com claude CLI
+    PROMPT_FILE=$(mktemp /tmp/meeting-prompt.XXXXXX)
+    cat > "$PROMPT_FILE" <<PROMPT
+Você é um assistente que resume reuniões corporativas em português. Com base na transcrição abaixo, gere um resumo estruturado com: **Contexto**, **Decisões tomadas**, **Próximos passos** e **Participantes mencionados** (se identificáveis). Seja conciso e direto.
+
+Transcrição:
+$TRANSCRIPT
+PROMPT
+    SUMMARY=$("$HOME/.local/bin/claude" -p "$(cat "$PROMPT_FILE")" < /dev/null 2>/tmp/meeting-claude.log)
+    rm -f "$PROMPT_FILE"
+
+    # Salvar nota no vault
+    mkdir -p "$MEETINGS_DIR"
+    DATE=$(date +%d-%m-%Y)
+    TIME=$(date +%H:%M)
+    FILENAME="$MEETINGS_DIR/Reunião $DATE.md"
+
+    # Se já existe nota do dia, incrementa
+    COUNT=2
+    while [ -f "$FILENAME" ]; do
+      FILENAME="$MEETINGS_DIR/Reunião $DATE ($COUNT).md"
+      COUNT=$((COUNT + 1))
+    done
+
+    cat > "$FILENAME" <<NOTE
+---
+tags: [reunião, trabalho]
+criado: $DATE
+---
+# Reunião — $DATE $TIME
+
+## Resumo
+
+$SUMMARY
+
+---
+
+## Transcrição completa
+
+$TRANSCRIPT
+NOTE
+
+    # Linkar na daily note
+    MONTHS=("" "Janeiro" "Fevereiro" "Março" "Abril" "Maio" "Junho" "Julho" "Agosto" "Setembro" "Outubro" "Novembro" "Dezembro")
+    DAILY="$VAULT/Daily Notes/$(date +%Y)/${MONTHS[$(date +%-m)]}/$DATE.md"
+    NOTE_NAME=$(basename "$FILENAME" .md)
+
+    if [ -f "$DAILY" ]; then
+      if grep -q "^### Notas Rápidas" "$DAILY"; then
+        sed -i "/^### Notas Rápidas/a - [[${NOTE_NAME}]] — reunião gravada às $TIME" "$DAILY"
+      fi
+    fi
+
+    rm -f "$AUDIOFILE"
+    notify "✅ Reunião salva" "[[${NOTE_NAME}]]" 8000
+  ) &
+
+  exit 0
+fi
+
+# --- INICIAR gravação ---
+pw-record --target="$SINK_MONITOR" "$AUDIOFILE" &
+echo $! > "$PIDFILE"
+notify "🔴 Gravando reunião" "Super+R para parar e processar"

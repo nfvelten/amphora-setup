@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+VAULT="${AMPHORA_VAULT:-$HOME/amphora}"
+repo=$(basename "$(git rev-parse --show-toplevel)")
+
+# Não logar commits do próprio vault
+[ "$repo" = "amphora" ] && exit 0
+
+commit_msg=$(git log -1 --pretty=%s)
+commit_hash=$(git log -1 --pretty=%h)
+branch=$(git branch --show-current)
+months=("" "Janeiro" "Fevereiro" "Março" "Abril" "Maio" "Junho" "Julho" "Agosto" "Setembro" "Outubro" "Novembro" "Dezembro")
+daily="$VAULT/Daily Notes/$(date +%Y)/${months[$(date +%-m)]}/$(date +%d-%m-%Y).md"
+
+# Log na daily note
+if [ -f "$daily" ]; then
+  entry="- 󰊢 \`$commit_hash\` **$repo** ($branch): $commit_msg"
+  if grep -q "^### Tarefas incompletas" "$daily"; then
+    sed -i "/^### Tarefas incompletas/i\\$entry" "$daily"
+  else
+    echo "$entry" >> "$daily"
+  fi
+fi
+
+# Atualizar nota do projeto em background
+(
+  project_note=$(find "$VAULT/Pessoal/Projetos" "$VAULT/Trabalho" -iname "*${repo}*" -name "*.md" 2>/dev/null | head -1)
+  [ -z "$project_note" ] && exit 0
+
+  timestamp=$(date +"%d-%m-%Y %H:%M")
+  diff_stat=$(git diff HEAD~1 HEAD --stat 2>/dev/null | tail -1)
+
+  # Gera contexto com claude
+  context=$("$HOME/.local/bin/claude" -p "Commit no projeto $repo: \"$commit_msg\". Stats: $diff_stat. Escreva UMA frase curta em português sobre o objetivo ou impacto desta mudança. Sem formatação, sem introdução." < /dev/null 2>/dev/null)
+
+  entry_line="- \`$commit_hash\` $timestamp — $commit_msg"
+  [ -n "$context" ] && entry_line="$entry_line — $context"
+
+  if grep -q "^## Commits" "$project_note"; then
+    sed -i "/^## Commits/a\\$entry_line" "$project_note"
+  else
+    printf "\n## Commits\n\n%s\n" "$entry_line" >> "$project_note"
+  fi
+) &

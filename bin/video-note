@@ -1,0 +1,108 @@
+#!/usr/bin/env bash
+# video-note <url> — baixa legenda do YouTube, resume com claude e salva no vault
+
+URL="$1"
+VAULT="${AMPHORA_VAULT:-$HOME/amphora}"
+DATE=$(date +%d-%m-%Y)
+MONTHS=("" "Janeiro" "Fevereiro" "Março" "Abril" "Maio" "Junho" "Julho" "Agosto" "Setembro" "Outubro" "Novembro" "Dezembro")
+DAILY="$VAULT/Daily Notes/$(date +%Y)/${MONTHS[$(date +%-m)]}/$DATE.md"
+TMPDIR=$(mktemp -d /tmp/video-note.XXXXXX)
+
+if [ -z "$URL" ]; then
+  echo "Uso: video-note <url>"
+  exit 1
+fi
+
+notify-send -a "Video Note" "🎬 Buscando legenda..." "$URL"
+
+# Pega título e legenda (pt, pt-BR, en — nessa ordem de preferência)
+yt-dlp \
+  --no-playlist \
+  --write-auto-sub \
+  --write-sub \
+  --sub-lang "en,pt,pt-BR" \
+  --sub-format "vtt" \
+  --skip-download \
+  --ignore-errors \
+  --extractor-args "youtube:skip=dash,hls" \
+  --output "$TMPDIR/%(title)s" \
+  "$URL" 2>/tmp/video-note.log
+
+# Pega título do vídeo
+TITLE=$(yt-dlp --no-playlist --get-title "$URL" 2>/dev/null)
+if [ -z "$TITLE" ]; then
+  notify-send -a "Video Note" "❌ Erro" "Não foi possível acessar o vídeo."
+  rm -rf "$TMPDIR"
+  exit 1
+fi
+
+# Encontra o arquivo de legenda
+SUB_FILE=$(find "$TMPDIR" -name "*.vtt" | head -1)
+
+if [ -z "$SUB_FILE" ]; then
+  notify-send -a "Video Note" "❌ Sem legenda" "$TITLE"
+  rm -rf "$TMPDIR"
+  exit 1
+fi
+
+# Limpa o VTT — remove timestamps, tags e duplicatas
+TRANSCRIPT=$(cat "$SUB_FILE" \
+  | grep -v '^WEBVTT' \
+  | grep -v '^NOTE' \
+  | grep -v '^$' \
+  | grep -v '^[0-9]' \
+  | sed 's/<[^>]*>//g' \
+  | sed '/^[0-9:.]* --> /d' \
+  | awk '!seen[$0]++' \
+  | tr '\n' ' ' \
+  | sed 's/  */ /g')
+
+if [ -z "$TRANSCRIPT" ]; then
+  notify-send -a "Video Note" "❌ Legenda vazia" "$TITLE"
+  rm -rf "$TMPDIR"
+  exit 1
+fi
+
+notify-send -a "Video Note" "✍️ Gerando resumo..." "$TITLE"
+
+# Resumo com claude
+SUMMARY=$("$HOME/.local/bin/claude" -p "Você é um assistente de estudo. Com base na transcrição do vídeo abaixo, gere um resumo em português com: **Tema principal**, **Pontos-chave** (3-6 bullets) e **Conclusão**. Seja conciso e direto.
+
+Título: $TITLE
+
+Transcrição:
+$TRANSCRIPT" < /dev/null 2>/dev/null)
+
+# Salva nota
+SAFE_TITLE=$(echo "$TITLE" | tr -d '/:*?"<>|\\' | cut -c1-60)
+mkdir -p "$VAULT/Pessoal/Vídeos"
+NOTE_FILE="$VAULT/Pessoal/Vídeos/${SAFE_TITLE}.md"
+
+cat > "$NOTE_FILE" <<NOTE
+---
+tags: [vídeo, estudo]
+criado: $DATE
+url: $URL
+---
+# $TITLE
+
+## Resumo
+
+$SUMMARY
+
+---
+
+## Transcrição
+
+$TRANSCRIPT
+NOTE
+
+# Linka na daily note
+if [ -f "$DAILY" ]; then
+  if grep -q "^### Notas Rápidas" "$DAILY"; then
+    sed -i "/^### Notas Rápidas/a - 🎬 [[Vídeos/${SAFE_TITLE}]] — vídeo assistido" "$DAILY"
+  fi
+fi
+
+rm -rf "$TMPDIR"
+notify-send -a "Video Note" "✅ Salvo" "[[Vídeos/$SAFE_TITLE]]" -t 6000
