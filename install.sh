@@ -70,27 +70,38 @@ fi
 
 echo ""
 
-# ── Claude CLAUDE.md ──────────────────────────────────────────────────────────
-echo "Configurando Claude Code..."
+# ── Vault ─────────────────────────────────────────────────────────────────────
+echo "Configurando vault em $VAULT..."
 
-if [ ! -d "$VAULT" ]; then
-  warn "Vault não encontrado em $VAULT — clone seu vault antes de continuar"
-  warn "  git clone <seu-repo> $VAULT"
+if [ -d "$VAULT" ]; then
+  warn "Vault já existe em $VAULT — pulando criação de estrutura"
 else
-  if [ ! -f "$VAULT/CLAUDE.md" ]; then
-    cp claude/CLAUDE.md "$VAULT/CLAUDE.md"
-    info "CLAUDE.md copiado para o vault"
-  else
-    warn "CLAUDE.md já existe no vault — compare com claude/CLAUDE.md se necessário"
-  fi
+  # Copia a estrutura do vault template
+  cp -r vault "$VAULT"
+  # Remove .gitkeep das pastas
+  find "$VAULT" -name ".gitkeep" -delete
+  info "Vault criado em $VAULT"
+fi
+
+# CLAUDE.md
+if [ ! -f "$VAULT/CLAUDE.md" ]; then
+  cp claude/CLAUDE.md "$VAULT/CLAUDE.md"
+  info "CLAUDE.md copiado para o vault"
+else
+  warn "CLAUDE.md já existe no vault — compare com claude/CLAUDE.md se necessário"
 fi
 
 echo ""
 echo "=== Instalação concluída ==="
 echo ""
 echo "Próximos passos:"
-echo "  1. Configure AMPHORA_VAULT no seu shell se o vault não está em ~/amphora"
-echo "  2. Para meeting-record, ajuste AMPHORA_SINK_MONITOR ou deixe detectar automaticamente"
-echo "  3. Abra o vault no Obsidian e instale os plugins listados no README"
-echo "  4. Para Neovim, veja: https://github.com/nfvelten/dotfiles"
-echo "  5. Para o tema, veja: https://github.com/nfvelten (mateCreations)"
+echo "  1. Abra $VAULT no Obsidian"
+echo "  2. Ative os plugins: Settings → Community Plugins → Enable All"
+echo "     (Obsidian baixa os plugins automaticamente)"
+echo "  3. Para o tema mateCreations: https://github.com/nfvelten"
+echo "  4. Para meeting-record, configure AMPHORA_SINK_MONITOR ou deixe detectar automaticamente"
+echo "  5. Para Neovim: https://github.com/nfvelten/dotfiles"
+echo ""
+echo "Variáveis de ambiente opcionais (~/.bashrc ou ~/.zshrc):"
+echo "  export AMPHORA_VAULT=\"\$HOME/amphora\"          # default"
+echo "  export AMPHORA_SINK_MONITOR=\"alsa_output...\"   # para meeting-record"

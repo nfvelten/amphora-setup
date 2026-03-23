@@ -1,0 +1,10 @@
+/* Keep the cursor centered while editing */
+.markdown-source-view.mod-cm6 .cm-scroller {
+    scroll-padding-top: 50vh;
+    scroll-padding-bottom: 50vh;
+}
+
+.markdown-source-view.mod-cm6 .cm-content {
+    padding-top: 50vh;
+    padding-bottom: 50vh;
+}

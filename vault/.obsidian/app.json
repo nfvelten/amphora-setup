@@ -1,0 +1,13 @@
+{
+  "readableLineLength": true,
+  "newFileLocation": "root",
+  "newFileFolderPath": "Pessoal",
+  "alwaysUpdateLinks": true,
+  "showLineNumber": false,
+  "showIndentGuide": true,
+  "foldIndent": true,
+  "foldHeading": true,
+  "tabSize": 4,
+  "vimMode": false,
+  "openBehavior": "daily"
+}
