@@ -18,18 +18,23 @@ if [ -f "$PIDFILE" ]; then
   PID=$(cat "$PIDFILE")
   kill "$PID" 2>/dev/null
   rm -f "$PIDFILE"
+
+  # Move audio to persistent location immediately
+  mkdir -p "$MEETINGS_DIR"
+  DATE=$(date +%d-%m-%Y)
+  TIME=$(date +%H:%M)
+  SAFE_AUDIOFILE="$MEETINGS_DIR/recording-$DATE-${TIME//:/-}.wav"
+  sleep 1
+  mv "$AUDIOFILE" "$SAFE_AUDIOFILE"
+
   notify "⏹ Recording stopped" "Transcribing in background..."
 
   (
-    # Wait for file to close before transcribing
-    sleep 1
-
     # Transcription
-    TRANSCRIPT=$("$HOME/.local/bin/meeting-transcribe" "$AUDIOFILE" 2>/tmp/meeting-transcribe.log)
+    TRANSCRIPT=$("$HOME/.local/bin/meeting-transcribe" "$SAFE_AUDIOFILE" 2>/tmp/meeting-transcribe.log)
 
     if [ -z "$TRANSCRIPT" ]; then
-      notify "❌ No speech detected" "Nothing to save."
-      rm -f "$AUDIOFILE"
+      notify "❌ No speech detected" "Audio saved at: $(basename "$SAFE_AUDIOFILE")"
       exit 1
     fi
 
@@ -45,9 +50,6 @@ PROMPT
     rm -f "$PROMPT_FILE"
 
     # Save note to vault
-    mkdir -p "$MEETINGS_DIR"
-    DATE=$(date +%d-%m-%Y)
-    TIME=$(date +%H:%M)
     FILENAME="$MEETINGS_DIR/Meeting $DATE.md"
 
     # If note for the day already exists, increment
@@ -86,7 +88,7 @@ NOTE
       fi
     fi
 
-    rm -f "$AUDIOFILE"
+    rm -f "$SAFE_AUDIOFILE"
     notify "✅ Meeting saved" "[[${NOTE_NAME}]]" 8000
   ) &
 
