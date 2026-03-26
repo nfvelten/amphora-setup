@@ -15,11 +15,9 @@ The goal is to reduce cognitive load by externalizing as much as possible: meeti
 | `meeting-record` | Records system audio (monitor sink), transcribes with Whisper and generates a summary + action items via Claude. Toggle with a keybind. |
 | `meeting-transcribe` | Audio transcription with `faster-whisper` (medium model). Used by `meeting-record`. |
 | `video-note` | Takes a YouTube URL, extracts subtitles, summarizes with Claude and saves a note to the vault. |
-| `daily-note` | Creates/opens today's daily note in Neovim via Hyprland scratchpad. |
 | `vault-log-updates.sh` | Logs installed/updated/removed system packages to the vault. |
 | `newsboat-save` | Takes a URL from newsboat, scrapes the article, summarizes with Claude and saves a note to the vault. |
 | `newsboat-save-bg` | Background wrapper for `newsboat-save` — keeps newsboat responsive while the article is processed. |
-| `claude-amphora` | Toggles a floating Claude Code scratchpad inside the vault. Bind to `Super+C` in Hyprland. |
 
 ### Git hook (`git-hooks/post-commit`)
 
@@ -68,7 +66,6 @@ Plugin files for LazyVim that integrate Neovim with the vault:
 - **Obsidian** — vault at `~/amphora` (or set `AMPHORA_VAULT`)
 - **Neovim** — recommended for vault editing
 - **libnotify** (`notify-send`) — for desktop notifications
-- **Hyprland** — only required for `daily-note` (scratchpad)
 - **rdrview** or **w3m** — article extraction for `newsboat-save`
 - **newsboat** — only required for `newsboat-save` integration
 

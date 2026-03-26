@@ -97,7 +97,7 @@ fn cmd_help(command: Option<&str>) {
             println!("  {} Asks for the scripts directory (~/.local/bin)", ARROW);
             println!("  {} Auto-detects the audio sink (PipeWire)", ARROW);
             println!("  {} Lets you choose what to install:", ARROW);
-            println!("      - Automation scripts (meeting-record, video-note, daily-note...)");
+            println!("      - Automation scripts (meeting-record, video-note, newsboat-save...)");
             println!("      - Global git hook (logs commits to the vault daily note)");
             println!("      - CLAUDE.md (commands /note, /standup, /focus and others)");
             println!("      - .obsidian config + Templates");
@@ -242,14 +242,6 @@ fn cmd_guide(topic: Option<&str>) {
             println!("  {}", style("Usage: video-note <url>").dim());
             println!();
 
-            println!("{}", style("daily-note").bold().green());
-            println!("  Opens (or creates) today's daily note in Neovim via Hyprland scratchpad.");
-            println!("  If the note doesn't exist, creates it with the full template: focus,");
-            println!("  personal/work tasks, quick notes and note log.");
-            println!("  {}", style("Requires: Hyprland + alacritty").dim());
-            println!("  {}", style("Usage: keybind (e.g. Super+D)").dim());
-            println!();
-
             println!("{}", style("vault-log-updates.sh").bold().green());
             println!("  Logs installed, updated or removed system packages");
             println!("  (via pacman) to Personal/System/Updates.md in the vault.");
@@ -271,12 +263,6 @@ fn cmd_guide(topic: Option<&str>) {
             println!("  {}", style("Usage: macro-key in newsboat config calling newsboat-save-bg").dim());
             println!();
 
-            println!("{}", style("claude-amphora").bold().green());
-            println!("  Toggles a floating Claude Code scratchpad inside the vault (Hyprland).");
-            println!("  On first press: opens alacritty with Claude Code in the vault directory.");
-            println!("  On subsequent presses: shows/hides the existing window.");
-            println!("  {}", style("Requires: Hyprland + alacritty").dim());
-            println!("  {}", style("Usage: bind = SUPER, C, exec, claude-amphora").dim());
         }
 
         Some("claude") => {
@@ -429,17 +415,7 @@ fn cmd_guide(topic: Option<&str>) {
             println!("  {}", style("github.com/nfvelten (mateCreations)").dim());
             println!();
             println!("{}", style("Recommended Hyprland keybinds:").bold());
-            println!("  bind = SUPER, C, exec, claude-amphora   # Claude Code scratchpad");
-            println!("  bind = SUPER, N, exec, daily-note        # daily note scratchpad");
             println!("  bind = SUPER, R, exec, meeting-record    # start/stop recording");
-            println!();
-            println!("{}", style("Window rules (windowrules.conf):").bold());
-            println!("  windowrulev2 = float, class:claude-amphora");
-            println!("  windowrulev2 = size 1100 640, class:claude-amphora");
-            println!("  windowrulev2 = workspace special:claude-amphora, class:claude-amphora");
-            println!("  windowrulev2 = float, class:daily-note");
-            println!("  windowrulev2 = size 1100 640, class:daily-note");
-            println!("  windowrulev2 = workspace special:daily-note, class:daily-note");
         }
 
         Some(other) => {
@@ -560,7 +536,7 @@ fn cmd_install_all() {
         .unwrap();
 
     let options = vec![
-        "Scripts (meeting-record, video-note, daily-note...)",
+        "Scripts (meeting-record, video-note, newsboat-save...)",
         "Global git hook (post-commit → logs commits to vault)",
         "CLAUDE.md in vault (/note, /standup, /focus and others)",
         ".obsidian config + Templates",
@@ -871,8 +847,6 @@ fn cmd_check() {
 
     let optional: &[(&str, &str, &str)] = &[
         ("nvim",      "system package manager",  "vault editing in Neovim"),
-        ("hyprctl",   "Hyprland WM",             "claude-amphora and daily-note scratchpads"),
-        ("alacritty", "system package manager",  "claude-amphora and daily-note scratchpads"),
         ("rdrview",   "github.com/nicksoutram/rdrview", "article extraction (newsboat-save)"),
         ("w3m",       "system package manager",  "fallback article extraction (newsboat-save)"),
         ("curl",      "system package manager",  "newsboat-save"),
@@ -1076,13 +1050,6 @@ fn warn_missing_deps(
         // Optional for newsboat-save
         if !dep_ok("rdrview") && !dep_ok("w3m") {
             optional_missing.push(("rdrview / w3m", "article extraction — newsboat-save"));
-        }
-        // Optional for claude-amphora / daily-note
-        if !dep_ok("hyprctl") {
-            optional_missing.push(("hyprctl", "Hyprland — needed for claude-amphora and daily-note"));
-        }
-        if !dep_ok("alacritty") {
-            optional_missing.push(("alacritty", "needed for claude-amphora and daily-note scratchpads"));
         }
     }
 
@@ -1336,10 +1303,8 @@ fn cmd_uninstall(component: Option<&str>) {
         "meeting-record",
         "meeting-transcribe",
         "video-note",
-        "daily-note",
         "newsboat-save",
         "newsboat-save-bg",
-        "claude-amphora",
         "vault-log-updates.sh",
     ];
 
